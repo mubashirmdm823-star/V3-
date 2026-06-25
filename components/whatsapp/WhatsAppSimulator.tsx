@@ -1,0 +1,2005 @@
+"use client";
+
+import { KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Phone, RefreshCw, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// ─── Menu Data ────────────────────────────────────────────────────────────────
+
+const MENU = {
+  burgers: {
+    title: "Burgers",
+    items: [
+      { name: "Zinger Burger", price: 500 },
+      { name: "Zinger Burger W/C", price: 550 },
+      { name: "Jumbo Zinger", price: 750 },
+      { name: "Think Food SP Burger", price: 550 },
+      { name: "Smoke Burger", price: 550 },
+      { name: "Spicy Stuff Burger", price: 700 },
+    ],
+  },
+  sandwiches: {
+    title: "Sandwiches",
+    items: [
+      { name: "Chicken Sandwich", price: 550 },
+      { name: "Club Sandwich", price: 500 },
+      { name: "BBQ Sandwich", price: 550 },
+      { name: "Smoke Sandwich", price: 550 },
+      { name: "Vegi Sandwich", price: 500 },
+      { name: "Mexican Sandwich", price: 600 },
+      { name: "Crispy Sandwich", price: 600 },
+      { name: "Think Food Special Sandwich", price: 550 },
+      { name: "Grill Sandwich", price: 650 },
+    ],
+  },
+  pizza: {
+    title: "Pizza",
+    items: [
+      { name: "Pizza Large 12 inch", price: 1200 },
+      { name: "Pizza Regular 9 inch", price: 850 },
+      { name: "Pizza Small 6 inch", price: 550 },
+      { name: "Think Food Special Pizza", price: 1500 },
+      { name: "Mexican Pizza", price: 1600 },
+    ],
+  },
+  pizzaFries: {
+    title: "Pizza Fries",
+    items: [
+      { name: "Pizza Fries Small Box", price: 500 },
+      { name: "Pizza Fries Large Box", price: 600 },
+    ],
+  },
+  rolls: {
+    title: "Roll",
+    items: [
+      { name: "Wrap", price: 550 },
+      { name: "Gyro", price: 550 },
+    ],
+  },
+  pasta: {
+    title: "Pasta",
+    items: [
+      { name: "Pasta Small", price: 500 },
+      { name: "Pasta Large", price: 600 },
+      { name: "Alfredo Pasta white sauce", price: 850 },
+      { name: "Macaroni Pasta red sauce", price: 750 },
+      { name: "Mexican Pasta white sauce", price: 850 },
+    ],
+  },
+  noodles: {
+    title: "Noodles",
+    items: [
+      { name: "Chicken Chowmein", price: 650 },
+      { name: "Vegetable Chowmein", price: 600 },
+    ],
+  },
+  rice: {
+    title: "Rice",
+    items: [
+      { name: "Chicken Fried Rice", price: 450 },
+      { name: "Vegetable Rice", price: 400 },
+      { name: "Egg Rice", price: 450 },
+      { name: "Singaporean Rice", price: 700 },
+      { name: "White Singaporean", price: 750 },
+    ],
+  },
+  starters: {
+    title: "Starter",
+    items: [
+      { name: "Chicken Strips 6 pcs with fries", price: 750 },
+      { name: "Hot Shot 8 pcs with fries", price: 800 },
+    ],
+  },
+  steaks: {
+    title: "Steaks",
+    items: [{ name: "Chicken Steak", price: 950 }],
+  },
+  toppings: {
+    title: "Extra Cheese & Chicken Topping",
+    items: [
+      { name: "Pizza Large Cheese Topping", price: 250 },
+      { name: "Pizza Medium Cheese Topping", price: 200 },
+      { name: "Pizza Small Cheese Topping", price: 150 },
+      { name: "Extra Chicken Large", price: 200 },
+      { name: "Extra Chicken Medium", price: 200 },
+      { name: "Extra Chicken Small", price: 150 },
+      { name: "Olive Mushroom Jalapeno", price: 150 },
+    ],
+  },
+};
+
+type MenuKey = keyof typeof MENU;
+
+const INFO = {
+  address: "Nazimabad No. 5, Paposh Nagar (Near Sarafa Bazar)",
+  mapsUrl: "https://www.google.com/maps/place/Think+Foods+for/@24.9218431,67.0224398,17z/data=!4m6!3m5!1s0x3eb33f93f39564c7:0x8e0b673bb483c53e!8m2!3d24.9219961!4d67.0223894!16s%2Fg%2F11mg4bfmtm?entry=ttu&g_ep=EgoyMDI2MDYyMy4wIKXMDSoASAFQAw%3D%3D",
+  timing: "6 PM to 3 AM",
+  phone: "0312-2175855",
+  deliveryFee: 150,
+  deliveryTime: "35 to 45 minutes",
+};
+
+// ─── Menu vocabulary & strict-match constants ────────────────────────────────
+
+// All words that appear in at least one menu item name (used to detect off-menu words)
+const ALL_MENU_WORDS = (() => {
+  const s = new Set<string>();
+  for (const cat of Object.values(MENU))
+    for (const item of cat.items)
+      for (const w of item.name.toLowerCase().split(/\s+/))
+        if (w.length > 2) s.add(w);
+  return s;
+})();
+
+// Words stripped when pulling food keywords from an order message.
+// Includes Roman Urdu conversation fillers so they never pollute menu matching.
+const ORDER_STOP = new Set([
+  // English order/filler words
+  "chahiye","want","order","give","take","pack","lena","add","get","please","kindly",
+  "mujhe","aur","and","bhi","ek","aik","ikh","dono","de","dena","dijiye","lagao","milna",
+  "ka","ki","ke","hai","hain","mein","se","ko","the","a","an","i","me","my","with",
+  "one","two","three","four","five","six","do","teen","chaar","paanch","main","hum","tum",
+  // Roman Urdu conversation fillers — asking/requesting/confirming
+  "batao","batana","batado","batayein","btao",
+  "chaiye","chahta","chahti","hun","chahye","chahiy",
+  "khana","peena",
+  "karo","karein","karden","karna","karwana","kar","kara","karwa",
+  "laga","bhej",
+  "sirf","bas",
+  "theek","thik","acha","achha","okay","yup","sahi","done","confirm",
+  "haan","yar","bhai",
+  "mere","liye","zara","mera","meri","taraf",
+  "wala","wali",
+  "mazeed","abhi","phir","jab",
+  "agar","agr",
+  "koi","kuch",
+  "please","plz",
+  // Ordering intent variants
+  "mangwana","mangwane","mangwani",
+  // Info / inquiry words
+  "dikhao","milega","rate","show","options","available","pooch",
+  // Negative / pause words
+  "nahi","ruk","ruko","jao","sochta","sochti","rehne","filhal","wait",
+  // Quantity modification words (not food items)
+  "dobara","barha","increase","quantity","kam",
+  // Remove action words
+  "nikal","hata","hatao",
+  // Replacement / correction words
+  "jagah","replace","change",
+  // Checkout / progress words
+  "aage","final","proceed","continue","checkout",
+  // Price / total inquiry words
+  "bill","estimate","kitna","total",
+  // Polite fillers
+  "thora","thori",
+  // Multi-item separator words (also in split regex)
+  "plus","sath","saath",
+]);
+
+// Single keyword → exact menu item (only for truly unambiguous single-word identifiers)
+const SINGLE_DEFAULTS: Record<string, string> = {
+  zinger:   "Zinger Burger",
+  jumbo:    "Jumbo Zinger",
+  steak:    "Chicken Steak",
+  gyro:     "Gyro",
+  wrap:     "Wrap",
+  strips:   "Chicken Strips 6 pcs with fries",
+  macaroni: "Macaroni Pasta red sauce",
+  alfredo:  "Alfredo Pasta white sauce",
+};
+
+// Category words: show all options and ask which one — never auto-add
+const CATEGORY_ONLY = new Set([
+  "rice","chawal","burger","noodles","sandwich","sandwiches",
+  "pizza","roll","rolls","starter","starters",
+  "pasta","chowmein",
+]);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ChatMessage {
+  id: string;
+  role: "ai" | "customer";
+  content: string;
+  time: string;
+}
+
+type Phase =
+  | "browsing"
+  | "item_selected"
+  | "checkout_review"
+  | "checkout_type"
+  | "checkout_address"
+  | "checkout_name"
+  | "checkout_summary"
+  | "done";
+
+interface CartItem {
+  name: string;
+  price: number;
+  qty: number;
+}
+
+interface PendingClarification {
+  category: string;  // "pasta", "burger", "chowmein", etc.
+  qty: number;       // quantity the customer originally requested
+}
+
+interface Draft {
+  cart: CartItem[];
+  type?: "delivery" | "pickup";
+  address?: string;
+  name?: string;
+  lastItem?: string;
+  pendingClarifications?: PendingClarification[];
+  lastCategory?: string;
+  pendingAdd?: { name: string; price: number; qty: number };
+}
+
+type CartAction =
+  | { op: "add"; item: CartItem }
+  | { op: "remove"; name: string }
+  | { op: "reduce"; name: string; by: number }
+  | { op: "update_qty"; name: string; qty: number }
+  | { op: "clear" };
+
+interface AIOut {
+  content: string;
+  nextPhase?: Phase;
+  draftPatch?: Partial<Omit<Draft, "cart">>;
+  cartAction?: CartAction;
+  cartActions?: CartAction[];
+  confirmed?: true;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(key: MenuKey) {
+  const { title, items } = MENU[key];
+  return `*${title}*\n${items.map((i) => `• ${i.name} — PKR ${i.price}`).join("\n")}`;
+}
+
+function getTime() {
+  return new Date().toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function parseContent(text: string): React.ReactNode[] {
+  return text.split(/(\*[^*\n]+\*)/g).map((seg, i) =>
+    seg.startsWith("*") && seg.endsWith("*") ? (
+      <strong key={i}>{seg.slice(1, -1)}</strong>
+    ) : (
+      <span key={i}>{seg}</span>
+    )
+  );
+}
+
+const URDU_NUMS: Record<string, number> = {
+  ek: 1, aik: 1, ikh: 1, one: 1,
+  do: 2, two: 2, dono: 2,
+  teen: 3, three: 3, tin: 3,
+  chaar: 4, char: 4, four: 4,
+  paanch: 5, panch: 5, five: 5,
+  chhe: 6, chay: 6, six: 6,
+};
+
+function parseQty(text: string): number {
+  const digit = text.match(/\b([1-9]\d*)\b/);
+  if (digit) return parseInt(digit[1]);
+  for (const [word, num] of Object.entries(URDU_NUMS)) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) return num;
+  }
+  return 1;
+}
+
+// Splits "ek zinger ek pasta" → ["ek zinger", "ek pasta"] by finding a second
+// quantity word inside the segment, which signals a new item request.
+// Only splits when 2+ quantity words are present; single-qty segments are returned as-is.
+function subSplitAtQtyBoundaries(seg: string): string[] {
+  const qtyPat = /\b(ek|aik|ikh|one|do|two|dono|teen|three|tin|chaar|char|four|paanch|panch|five|chhe|chay|six|[1-9]\d*)\b/gi;
+  const hits: number[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = qtyPat.exec(seg)) !== null) hits.push(m.index);
+  if (hits.length < 2) return [seg];
+  const parts: string[] = [];
+  let prev = 0;
+  for (const pos of hits.slice(1)) {
+    let end = pos;
+    while (end > prev && seg[end - 1] === " ") end--;
+    parts.push(seg.slice(prev, end).trim());
+    prev = pos;
+  }
+  parts.push(seg.slice(prev).trim());
+  return parts.filter(Boolean);
+}
+
+function cartSummary(cart: CartItem[]): string {
+  if (cart.length === 0) return "Aapka cart khali hai.";
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const lines = cart.map((i) => `${i.qty} x ${i.name} — PKR ${i.price * i.qty}`).join("\n");
+  return `*Current Order:*\n${lines}\n\n*Total: PKR ${total}*`;
+}
+
+function reviewSummary(cart: CartItem[]): string {
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const lines = cart.map((i) => `  ${i.qty} x ${i.name} — PKR ${i.price * i.qty}`).join("\n");
+  return `📋 *Order Review:*\n\n${lines}\n\n*Total: PKR ${total}*\n\nAgar aap apne order mein koi item add, remove ya change karna chahte hain to abhi bata dein.\n\nAgar sab kuch theek hai to sirf *Confirm Order* likh dein.\nUske baad order mein koi changes nahi kiye ja sakenge.`;
+}
+
+function findMenuItem(text: string, minScore = 1): { name: string; price: number } | null {
+  const t = text.toLowerCase();
+  let best: { name: string; price: number } | null = null;
+  let bestScore = 0;
+  for (const cat of Object.values(MENU)) {
+    for (const item of cat.items) {
+      const words = item.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+      const score = words.filter((w) => t.includes(w)).length;
+      if (score > bestScore) {
+        bestScore = score;
+        best = item;
+      }
+    }
+  }
+  return bestScore >= minScore ? best : null;
+}
+
+function findInCart(cart: CartItem[], text: string): CartItem | null {
+  const t = text.toLowerCase();
+  for (const item of cart) {
+    const words = item.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    if (words.some((w) => t.includes(w))) return item;
+  }
+  return null;
+}
+
+// Returns true when a remove message carries a quantity (reduce by N, not remove all)
+function hasReduceQty(text: string): boolean {
+  const t = text.toLowerCase();
+  if (/\b[1-9]\d*\b/.test(t)) return true;
+  for (const w of ["ek", "aik", "ikh", "teen", "tin", "chaar", "char", "paanch", "panch", "chhe", "chay"]) {
+    if (new RegExp(`\\b${w}\\b`).test(t)) return true;
+  }
+  return false;
+}
+
+interface ExtractedItem { item: { name: string; price: number }; qty: number; }
+
+// Splits a message by commas / "aur" / "and" and extracts every menu item mentioned
+function extractItems(text: string): ExtractedItem[] {
+  const segments = text.split(/[,،]|\baur\b|\band\b|\bor\b|\bplus\b|\bsaath\b|\bsath\b/i).map((s) => s.trim()).filter(Boolean);
+  const results: ExtractedItem[] = [];
+  const seen = new Set<string>();
+  for (const seg of segments) {
+    const item = findMenuItem(seg, 1);
+    if (item && !seen.has(item.name)) {
+      seen.add(item.name);
+      results.push({ item, qty: parseQty(seg) });
+    }
+  }
+  return results;
+}
+
+// Variant keywords ordered longest-first so "white sauce" is matched before "white"
+const VARIANT_KWS = [
+  "white sauce", "red sauce", "with cheese",
+  "12 inch", "9 inch", "6 inch",
+  "jumbo", "large", "medium", "regular", "small",
+  "vegetable", "chicken", "veg", "egg",   // flavor words for "X nahi Y" corrections
+];
+
+// Maps clarification category names to MENU keys
+function getCategoryKey(category: string): keyof typeof MENU | null {
+  const map: Record<string, keyof typeof MENU> = {
+    burger: "burgers", pizza: "pizza", pasta: "pasta",
+    chowmein: "noodles", noodles: "noodles", rice: "rice", chawal: "rice",
+    sandwich: "sandwiches", sandwiches: "sandwiches",
+    roll: "rolls", rolls: "rolls",
+    starter: "starters", starters: "starters",
+  };
+  return map[category] ?? null;
+}
+
+// Search within a specific category for the item best matching the customer's text
+function findItemForCategory(text: string, category: string): { name: string; price: number } | null {
+  const key = getCategoryKey(category);
+  if (!key) return null;
+  const t = text.toLowerCase();
+  let best: { name: string; price: number } | null = null;
+  let bestScore = 0;
+  for (const item of MENU[key].items) {
+    const words = item.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    const score = words.filter((w) => t.includes(w)).length;
+    if (score > bestScore) { bestScore = score; best = item; }
+  }
+  return bestScore >= 1 ? best : null;
+}
+
+// Returns the category label ("burger", "pizza", etc.) for a given menu item name
+function getItemCategory(itemName: string): string | null {
+  const lower = itemName.toLowerCase();
+  const reverseMap: Record<string, string> = {
+    burgers: "burger", pizza: "pizza", pasta: "pasta",
+    noodles: "chowmein", rice: "rice", sandwiches: "sandwich",
+    rolls: "roll", starters: "starter", steaks: "steak",
+  };
+  for (const [key, section] of Object.entries(MENU) as [string, { items: { name: string; price: number }[] }][]) {
+    if (section.items.some((i) => i.name.toLowerCase() === lower)) return reverseMap[key] ?? null;
+  }
+  return null;
+}
+
+// Extracts a PKR amount from price-selection phrases like "500 wala", "PKR 600", "700 ka"
+// Returns null when no qualifying price pattern is found
+function extractPriceRequest(text: string): number | null {
+  const m = text.match(/\bpkr\s*(\d{3,4})\b/i)
+         ?? text.match(/\brs\.?\s*(\d{3,4})\b/i)
+         ?? text.match(/\b(\d{3,4})\s+(?:wala|wali|ka\b|ki\b|da\b)/i);
+  if (!m) return null;
+  const price = parseInt(m[1]);
+  return price >= 300 && price <= 2000 ? price : null;
+}
+
+// Words excluded when computing the "base identity" of an item for cross-variant matching
+const VARIANT_EXCLUDE = new Set([
+  "small","large","medium","regular","jumbo","with",
+  "white","red","sauce","inch","cheese","w/c",
+]);
+
+function isVariantSwapMessage(text: string): boolean {
+  const t = text.toLowerCase();
+  if (/(nahi chahiye|mat chahiye)/.test(t)) return false;
+  // "X nahi Y" where something meaningful follows nahi
+  if (/\bnahi\s+\w/.test(t)) {
+    const after = t.match(/\bnahi\s+(\S+)/)?.[1] ?? "";
+    if (VARIANT_KWS.some((k) => after.startsWith(k.split(" ")[0])) || /pickup|delivery/.test(after)) return true;
+  }
+  // "large kar do", "jumbo karo" etc.
+  if (/\b(large|small|regular|medium|jumbo)\s*(kar do|karo|kar dena|kar)\b/.test(t)) return true;
+  // sauce-type swap: "white sauce" / "red sauce"
+  if (/\b(white sauce|red sauce)\b/.test(t)) return true;
+  return false;
+}
+
+function findVariantSwap(
+  text: string,
+  lastItemName: string | undefined,
+  cart: CartItem[]
+): { fromName: string; qty: number; to: { name: string; price: number } } | null {
+  if (!lastItemName) return null;
+  const t = text.toLowerCase();
+
+  let targetKw: string | null = null;
+  for (const kw of VARIANT_KWS) {
+    if (t.includes(kw)) { targetKw = kw; break; }
+  }
+  if (!targetKw) return null;
+
+  let lastCatKey: string | null = null;
+  for (const [key, cat] of Object.entries(MENU)) {
+    if (cat.items.some((i) => i.name === lastItemName)) { lastCatKey = key; break; }
+  }
+  if (!lastCatKey) return null;
+
+  const catItems = MENU[lastCatKey as keyof typeof MENU].items;
+
+  // Identity words of the last item (strip size/variant words)
+  const baseWords = lastItemName.toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !VARIANT_EXCLUDE.has(w));
+
+  let best: { name: string; price: number } | null = null;
+  let bestScore = -1;
+  for (const item of catItems) {
+    if (item.name === lastItemName) continue;
+    const n = item.name.toLowerCase();
+    if (!n.includes(targetKw)) continue;
+    const score = baseWords.filter((w) => n.includes(w)).length;
+    if (score > bestScore) { bestScore = score; best = item; }
+  }
+  if (!best) return null;
+
+  const qty = cart.find((i) => i.name === lastItemName)?.qty ?? 1;
+  return { fromName: lastItemName, qty, to: best };
+}
+
+// Detects when customer wants to REPLACE the current category item with a different one
+// ("Smoke Burger kar do", "Chicken chowmein kar do", "Alfredo kar do")
+// Returns { from: CartItem, to: MenuItem } — caller does remove + add atomically
+function findCategoryReplacement(
+  text: string,
+  lastItemName: string | undefined,
+  lastCategory: string | undefined,
+  cart: CartItem[]
+): { from: CartItem; to: { name: string; price: number } } | null {
+  if (!/\b(kar do|karo|kar dena|change kar|badal do|replace kar|banana hai|rakhna hai)\b/.test(text)) return null;
+
+  // Determine active category from context (lastItem → lastCategory → single-item cart)
+  const activeCat =
+    (lastItemName ? getItemCategory(lastItemName) : null) ??
+    lastCategory ??
+    (cart.length === 1 ? getItemCategory(cart[0].name) : null);
+
+  // Prefer searching within the active category for unambiguous resolution
+  let newItem: { name: string; price: number } | null = activeCat
+    ? findItemForCategory(text, activeCat)
+    : null;
+  if (!newItem) newItem = findMenuItem(text, 1);
+  if (!newItem) return null;
+
+  const newCat = getItemCategory(newItem.name);
+  if (!newCat) return null;
+
+  // Priority 1: lastItem is in same category and differs from new item
+  if (lastItemName) {
+    const fromItem = cart.find((i) => i.name === lastItemName);
+    if (fromItem && getItemCategory(fromItem.name) === newCat && fromItem.name !== newItem.name) {
+      return { from: fromItem, to: newItem };
+    }
+  }
+  // Priority 2: lastCategory matches
+  if (lastCategory === newCat) {
+    const fromItem = cart.find((i) => getItemCategory(i.name) === newCat);
+    if (fromItem && fromItem.name !== newItem.name) return { from: fromItem, to: newItem };
+  }
+  // Priority 3: exactly one cart item in that category
+  const catItems = cart.filter((i) => getItemCategory(i.name) === newCat);
+  if (catItems.length === 1 && catItems[0].name !== newItem.name) {
+    return { from: catItems[0], to: newItem };
+  }
+
+  return null;
+}
+
+function findMenuItemByName(name: string): { name: string; price: number } | null {
+  for (const cat of Object.values(MENU))
+    for (const item of cat.items)
+      if (item.name === name) return item;
+  return null;
+}
+
+function getFoodKeywords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^a-z]/g, ""))
+    .filter((w) => w.length > 2 && !ORDER_STOP.has(w) && !/^\d+$/.test(w));
+}
+
+type MatchResult =
+  | { ok: true; item: { name: string; price: number }; qty: number }
+  | { ok: false; reason: "off_menu" | "ambiguous"; category?: string; term: string };
+
+function strictMatchSegment(seg: string): MatchResult {
+  const qty = parseQty(seg);
+  const kws = getFoodKeywords(seg);
+  if (kws.length === 0) return { ok: false, reason: "ambiguous", term: seg };
+
+  if (kws.length === 1) {
+    const kw = kws[0];
+    const defaultName = SINGLE_DEFAULTS[kw];
+    if (defaultName) {
+      const item = findMenuItemByName(defaultName);
+      if (item) return { ok: true, item, qty };
+    }
+    if (CATEGORY_ONLY.has(kw)) return { ok: false, reason: "ambiguous", category: kw, term: seg };
+    if (!ALL_MENU_WORDS.has(kw)) return { ok: false, reason: "off_menu", term: seg };
+    const item = findMenuItem(seg, 1);
+    if (item) return { ok: true, item, qty };
+    return { ok: false, reason: "ambiguous", term: seg };
+  }
+
+  // Multi-keyword: any unknown word → off-menu
+  const unknownKws = kws.filter((w) => !ALL_MENU_WORDS.has(w));
+  if (unknownKws.length > 0) {
+    const category = kws.find((w) => CATEGORY_ONLY.has(w));
+    return { ok: false, reason: "off_menu", category, term: seg };
+  }
+
+  // All keywords are menu words — need ALL of them in one item's name
+  for (const cat of Object.values(MENU))
+    for (const item of cat.items) {
+      const n = item.name.toLowerCase();
+      if (kws.every((w) => n.includes(w))) return { ok: true, item, qty };
+    }
+
+  // Valid menu words but no single item has all of them → off-menu combination
+  const category = kws.find((w) => CATEGORY_ONLY.has(w));
+  return { ok: false, reason: "off_menu", category, term: seg };
+}
+
+// Returns just the item list for a category (no header, no question) — used inside compound responses
+function listCategoryItems(category?: string): string {
+  const list = (key: keyof typeof MENU) =>
+    MENU[key].items.map((i) => `• ${i.name} — PKR ${i.price}`).join("\n");
+  switch (category) {
+    case "burger":                return list("burgers");
+    case "rice": case "chawal":   return list("rice");
+    case "pizza":                 return list("pizza");
+    case "pasta":                 return list("pasta");
+    case "noodles": case "chowmein": return list("noodles");
+    case "sandwich": case "sandwiches": return list("sandwiches");
+    case "roll": case "rolls":    return list("rolls");
+    case "starter": case "starters": return list("starters");
+    default:                      return "";
+  }
+}
+
+function categoryOptions(category?: string): string {
+  const list = (key: keyof typeof MENU) =>
+    MENU[key].items.map((i) => `• *${i.name}* — PKR ${i.price}`).join("\n");
+  const ask = (label: string) => `\n\nAap in mein se kaunsa *${label}* order karna chahenge?`;
+  switch (category) {
+    case "burger":
+      return `🍔 *Hamare paas yeh burger options hain:*\n\n${list("burgers")}${ask("burger")}`;
+    case "rice":
+    case "chawal":
+      return `🍚 *Available Rice Options:*\n\n${list("rice")}${ask("rice")}`;
+    case "pizza":
+      return `🍕 *Available Pizza Options:*\n\n${list("pizza")}${ask("pizza")}`;
+    case "pasta":
+      return `🍝 *Available Pasta Options:*\n\n${list("pasta")}${ask("pasta")}`;
+    case "noodles":
+    case "chowmein":
+      return `🍜 *Available Noodles Options:*\n\n${list("noodles")}${ask("noodles item")}`;
+    case "sandwich":
+    case "sandwiches":
+      return `🥪 *Available Sandwich Options:*\n\n${list("sandwiches")}${ask("sandwich")}`;
+    case "roll":
+    case "rolls":
+      return `🌯 *Available Roll Options:*\n\n${list("rolls")}${ask("roll")}`;
+    case "starter":
+    case "starters":
+      return `🍗 *Available Starter Options:*\n\n${list("starters")}${ask("starter")}`;
+    default:
+      return `Think Food menu se order karein:\n\n🍔 Burgers — from PKR 500\n🍕 Pizza — from PKR 550\n🥪 Sandwiches — from PKR 500\n🍜 Chinese — from PKR 400\n🍝 Pasta — from PKR 500\n🍚 Rice — from PKR 400`;
+  }
+}
+
+const ORDER_INTENT =
+  /\b(want|order|give|take|pack|chahiye|chaiye|chahye|chahiy|lena|aik|ek|1x|one|i'll have|ill have|get me|add|de do|dijiye|dena|lagao|milna|bhi|mangwana|mangwane|mangwani|khana)\b/;
+
+const REMOVE_INTENT =
+  /(remove|hata|hatao|delete|nikalo|nahi chahiye|mat chahiye|wapas karo|cancel item)/;
+
+const UPDATE_QTY_INTENT =
+  /(ki jagah|update kar|badal do|change kar|quantity|qty|bana do|wala kar do|kar do)/;
+
+const ORDER_SUMMARY_INTENT =
+  /(mera order|mere order|order dikhao|order batao|cart dikhao|kya order|show order|order summary|current order|what.*order)/;
+
+const CHECKOUT_TRIGGER =
+  /(place order|order place|place kar do|order karden|place karo|order kar do|order karo|karo order|bas yahi|checkout|proceed|continue|isi order|yahi chahiye|submit order|complete order|order submit|order complete|order send|order bhejo|aage chalo|order final)/;
+
+// Explicit order confirmation — moves from checkout_review to Delivery/Pickup
+const CONFIRM_ORDER =
+  /\b(confirm order|order confirm|order confirm kar do|order confirm karo|sab theek|bilkul theek|all correct|all good|confirm kar do|bas confirm kar do|bas confirm|final kar do|order final|haan confirm|yes confirm|sab sahi hai)\b|^\s*(confirm|confirmed|proceed|continue|submit)\s*[!.]*\s*$/i;
+
+const HYPOTHETICAL_INTENT =
+  /\b(agar|agr)\b.{0,60}\b(add karun|add karo|add karoon|add krun|lagao|dena|add hoga|add karun to|milao|milaun)\b|\b(total kitna hoga|total kya hoga|kia price hongy|price hongy|price hoga|abhi add nahi|sirf price batao|sirf price bata|sirf total|what.*total|price kya honga|total bata|kitna hoga|kitna banta|total preview)\b/i;
+
+const NEGATIVE_REPLY =
+  /\b(nahi|nahin|no|nope|abhi nahi|not now|baad mein|later|rehne do|rehne|zaroorat nahi|chahiye nahi|mat|theek hai baad mein|ruko|ruk jao|wait|sochta hun|sochti hun|filhal nahi|abhi sirf)\b/;
+
+const CART_CLEAR =
+  /(cancel order|cart clear|sab hata do|cart empty|sabhi items hata|order hatao|clear cart|order clear|poora order cancel|puri order cancel)/;
+
+// Extracts only the person's name from natural-language name phrases.
+// "Mera naam Fahad hai" → "Fahad", "I am Ali" → "Ali", "Main Bilal hun" → "Bilal"
+function extractName(raw: string): string {
+  const t = raw.trim();
+  let m: RegExpMatchArray | null;
+  // "Mera naam X hai" / "Mera name X hai" / "Apna naam X hai"
+  m = t.match(/\b(?:mera|meri|hamara|apna|mira)\s+(?:naam|name)\s+(.+?)(?:\s+ha[ei]n?|\s+hy\s*$|$)/i);
+  if (m) return m[1].trim();
+  // "My name is X"
+  m = t.match(/\bmy\s+name\s+is\s+(.+)/i);
+  if (m) return m[1].replace(/\s+ha[ei]n?\s*$/i, "").trim();
+  // "naam X hai" (without possessive)
+  m = t.match(/\bnaam\s+(.+?)(?:\s+ha[ei]n?|$)/i);
+  if (m) return m[1].trim();
+  // "I am X" / "I'm X"
+  m = t.match(/\b(?:i\s+am|i'm)\s+(.+)/i);
+  if (m) return m[1].replace(/\s+hu[hn]?\s*$/i, "").replace(/\s+ha[ei]n?\s*$/i, "").trim();
+  // "Main X hun" / "Mein X hun" / "Main X hoon"
+  m = t.match(/\b(?:main|mein)\s+(.+?)\s+(?:hu[hn]?|hoon)\s*$/i);
+  if (m) return m[1].trim();
+  // "X hun" / "X hoon" at end
+  m = t.match(/^(.+?)\s+(?:hu[hn]?|hoon)\s*$/i);
+  if (m && m[1].split(/\s+/).length <= 3) return m[1].trim();
+  // Plain name — return as-is
+  return t;
+}
+
+function isValidAddress(addr: string): boolean {
+  const trimmed = addr.trim();
+  if (trimmed.length < 10) return false;
+  const words = trimmed.split(/\s+/);
+  if (words.length < 3) return false;
+  const JUNK = new Set(["asdf", "abc", "ok", "yes", "no", "hello", "hi", "test", "xyz", "qwerty", "asd", "k", "okay", "fine", "lol"]);
+  const real = words.filter((w) => !JUNK.has(w.toLowerCase()) && w.length >= 2);
+  return real.length >= 2;
+}
+
+// ─── Unavailable item map with targeted alternatives ─────────────────────────
+
+const UNAVAIL_MAP: Array<{ pattern: RegExp; label: string; alts: string }> = [
+  {
+    pattern: /\b(biryani|pulao)\b/,
+    label: "Biryani / Pulao",
+    alts: "Biryani available nahi hai, lekin hamare rice dishes iska perfect substitute hain:\n\n🍚 *Singaporean Rice* — PKR 700 (best-seller, loaded with flavour)\n🍚 *Chicken Fried Rice* — PKR 450\n🍚 *Egg Rice* — PKR 450\n\nKoi try karein?",
+  },
+  {
+    pattern: /\b(karahi|nihari|haleem|qorma)\b/,
+    label: "Desi food",
+    alts: "Desi curries hamare menu mein nahi hain. Lekin filling options:\n\n🥩 *Chicken Steak* — PKR 950 (grilled, juicy, satisfying)\n🍗 *Chicken Strips 6 pcs with fries* — PKR 750\n\nKoi try karein?",
+  },
+  {
+    pattern: /\b(broast)\b/,
+    label: "Broast",
+    alts: "Broast available nahi hai, lekin hamare crispy chicken options hain:\n\n🍗 *Chicken Strips 6 pcs with fries* — PKR 750 (crispy, juicy)\n🍗 *Hot Shot 8 pcs with fries* — PKR 800\n\nIn mein se order karein?",
+  },
+  {
+    pattern: /\b(shawarma)\b/,
+    label: "Shawarma",
+    alts: "Shawarma nahi hai, lekin bilkul usi style mein:\n\n🌯 *Wrap* — PKR 550\n🌯 *Gyro* — PKR 550\n\nDono same price par hain. Koi try karein?",
+  },
+  {
+    pattern: /\b(tikka|kabab)\b/,
+    label: "Tikka / Kabab",
+    alts: "Tikka/Kabab available nahi hain. Grill-lovers ke liye:\n\n🥩 *Chicken Steak* — PKR 950\n🍗 *Chicken Strips 6 pcs with fries* — PKR 750",
+  },
+  {
+    pattern: /\b(chai|tea|coffee|juice|lassi|drinks?|cold drink|coke|pepsi|sprite|7up|7\s*up|fanta|dew|mountain dew|water|soda|beverage|beverages?)\b/,
+    label: "Drinks",
+    alts: "Drinks / beverages current menu mein available nahi hain.\n\nFood order kar sakte hain — koi item try karein?",
+  },
+  {
+    pattern: /\b(roti|naan|paratha)\b/,
+    label: "Roti / Naan",
+    alts: "Roti/Naan available nahi hai. Bread alternatives:\n\n🥪 *Sandwiches* — from PKR 500\n🌯 *Wrap* — PKR 550",
+  },
+  {
+    pattern: /\b(daal|dal|sabzi)\b/,
+    label: "Daal / Sabzi",
+    alts: "Desi dishes nahi hain. Vegetable options:\n\n🍚 *Vegetable Rice* — PKR 400\n🍜 *Vegetable Chowmein* — PKR 600\n🥪 *Vegi Sandwich* — PKR 500",
+  },
+];
+
+// ─── Spelling normalisation ───────────────────────────────────────────────────
+// Handles Roman-Urdu abbreviations and common misspellings before intent matching
+
+function normalizeSpelling(text: string): string {
+  return text
+    .replace(/\bzngr\b/gi,     "zinger")
+    .replace(/\bznger\b/gi,    "zinger")
+    .replace(/\bchowmin\b/gi,  "chowmein")
+    .replace(/\bchowmain\b/gi, "chowmein")
+    .replace(/\bchowmien\b/gi, "chowmein")
+    .replace(/\bchowmine\b/gi, "chowmein")
+    .replace(/\bpzza\b/gi,     "pizza")
+    .replace(/\bbrgr\b/gi,     "burger")
+    .replace(/\bpsta\b/gi,     "pasta")
+    .replace(/\bsndwch\b/gi,   "sandwich")
+    .replace(/\bnhi\b/gi,      "nahi")
+    .replace(/\bnhin\b/gi,     "nahin")
+    .replace(/\bhan\b/gi,      "haan")
+    .replace(/\bkrdo\b/gi,     "kar do")
+    .replace(/\bkrna\b/gi,     "karna")
+    .replace(/\bkrein\b/gi,    "karein")
+    .replace(/\bkro\b/gi,      "karo")
+    .replace(/\bplz\b/gi,      "please")
+    .replace(/\brmv\b/gi,      "remove")
+    .replace(/\bcncl\b/gi,     "cancel")
+    .replace(/\bsme\b/gi,      "same")
+    .replace(/\bhat do\b/gi,   "hata do")
+    .replace(/\bhatado\b/gi,   "hata do")
+    // Contractions that would otherwise leave unknown keywords in menu matching
+    .replace(/\bdedo\b/gi,     "de do")
+    .replace(/\bkardo\b/gi,    "kar do")
+    .replace(/\bbhejdo\b/gi,   "bhej do")
+    .replace(/\bbtao\b/gi,     "batao")
+    .replace(/\bthk\b/gi,      "theek")
+    .replace(/\bthik\b/gi,     "theek")
+    .replace(/\bmujhy\b/gi,    "mujhe")
+    .replace(/\bmjy\b/gi,      "mujhe")
+    .replace(/\bgive me\b/gi,  "dena")
+    // Ordering intent variants → normalise to canonical forms so ORDER_INTENT catches them
+    .replace(/\bchahye\b/gi,   "chahiye")
+    .replace(/\bchahiy\b/gi,   "chahiye")
+    .replace(/\bmangwalo\b/gi, "mangwana")
+    // Price query variants
+    .replace(/\bkitny\b/gi,    "kitna")
+    // Info/show request variants
+    .replace(/\bdikhado\b/gi,  "dikhao")
+    // Pause/wait shorthand
+    .replace(/\brukja\b/gi,    "ruk jao")
+    .replace(/\brukjao\b/gi,   "ruk jao");
+}
+
+// "ek aur" / "one more" — add 1 to the last touched item
+const EK_AUR_INTENT =
+  /\b(ek aur|aur ek|ek or|one more|aur wahi|same aur|wahi wala aur|same again|another one|add another|same item|ek aur do)\b/;
+
+// ─── AI Logic ─────────────────────────────────────────────────────────────────
+
+function ai(input: string, phase: Phase, draft: Draft): AIOut {
+  const t = normalizeSpelling(input.toLowerCase().trim());
+
+  const cartTrail = phase === "checkout_review"
+    ? "\n\nKoi aur change karna ho to batayein, ya *Confirm Order* likh dein."
+    : "\n\nType any item to add more, or *Place Order* to checkout.";
+
+  // ── Order summary ──────────────────────────────────────────────────────────
+  // Only fire for pure summary requests — if numerics are also present, the active
+  // cart block handles adding first (and already appends the cart summary in its response)
+  const hasPureOrderSignal = /\d+/.test(t) ||
+    Object.keys(URDU_NUMS).some((w) => new RegExp(`\\b${w}\\b`).test(t));
+  if (ORDER_SUMMARY_INTENT.test(t) && !hasPureOrderSignal) {
+    if (draft.cart.length === 0) {
+      return { content: `Aapka cart abhi khali hai.\n\nKoi item ka naam type karein order karne ke liye.` };
+    }
+    return { content: cartSummary(draft.cart) };
+  }
+
+  // ── Pending clarification resolution ──────────────────────────────────────
+  // When AI previously asked "which pasta/burger?" the next customer message tries to resolve it
+  if (draft.pendingClarifications && draft.pendingClarifications.length > 0) {
+    const pending = draft.pendingClarifications;
+    const segments = t.split(/[,،]|\baur\b|\band\b|\bor\b|\bplus\b|\bsaath\b|\bsath\b/i).map((s) => s.trim()).filter(Boolean);
+
+    const resolved: Array<{ item: { name: string; price: number }; qty: number }> = [];
+    const stillPending: PendingClarification[] = [];
+
+    for (const p of pending) {
+      let found = false;
+      for (const seg of segments) {
+        const item = findItemForCategory(seg, p.category);
+        if (item) {
+          resolved.push({ item, qty: p.qty });
+          found = true;
+          break;
+        }
+      }
+      if (!found) stillPending.push(p);
+    }
+
+    if (resolved.length > 0) {
+      const actions: CartAction[] = [];
+      let newCart = [...draft.cart];
+      const addedLines: string[] = [];
+      let lastAddedName: string | undefined;
+
+      for (const { item, qty } of resolved) {
+        const existing = newCart.find((i) => i.name === item.name);
+        if (existing) {
+          newCart = newCart.map((i) => i.name === item.name ? { ...i, qty: i.qty + qty } : i);
+        } else {
+          newCart = [...newCart, { name: item.name, price: item.price, qty }];
+        }
+        addedLines.push(`${qty} x ${item.name}`);
+        actions.push({ op: "add", item: { name: item.name, price: item.price, qty } });
+        lastAddedName = item.name;
+      }
+
+      if (stillPending.length > 0) {
+        let content = `*Added:*\n${addedLines.join("\n")}`;
+        for (const p of stillPending) {
+          const cap = p.category.charAt(0).toUpperCase() + p.category.slice(1);
+          content += `\n\n*${cap} ke liye options:*\n${listCategoryItems(p.category)}`;
+        }
+        const labels = stillPending.map((p) => `*${p.category}*`).join(" aur ");
+        content += `\n\nAap ${labels} mein se kaunsa option select karna chahenge?`;
+        return {
+          content,
+          nextPhase: "item_selected",
+          cartActions: actions,
+          draftPatch: {
+            lastItem: lastAddedName,
+            pendingClarifications: stillPending,
+            lastCategory: (lastAddedName ? getItemCategory(lastAddedName) : null) ??
+              (stillPending.length > 0 ? stillPending[0].category : undefined) ??
+              draft.lastCategory,
+          },
+        };
+      }
+
+      return {
+        content: `*Added:*\n${addedLines.join("\n")}\n\n${cartSummary(newCart)}${cartTrail}`,
+        nextPhase: "item_selected",
+        cartActions: actions,
+        draftPatch: {
+          lastItem: lastAddedName,
+          pendingClarifications: [],
+          lastCategory: (lastAddedName ? getItemCategory(lastAddedName) : null) ?? draft.lastCategory,
+        },
+      };
+    }
+    // Nothing matched — fall through to normal handling (pending stays)
+  }
+
+  // ── Checkout phases ────────────────────────────────────────────────────────
+  if (phase === "checkout_type") {
+    if (NEGATIVE_REPLY.test(t) || /cancel/.test(t))
+      return {
+        content: `Koi baat nahi. Cart abhi bhi save hai.\n\nJab order place karna ho, *place order* type karein.`,
+        nextPhase: "item_selected",
+      };
+    if (/delivery/.test(t))
+      return {
+        content: `📍 Aapka *delivery address* share karein.\n\nExample:\n• House 45 Street 12 Nazimabad Karachi\n• Block A DHA Karachi`,
+        nextPhase: "checkout_address",
+        draftPatch: { type: "delivery" },
+      };
+    if (/pickup|pick up/.test(t))
+      return {
+        content: `👤 Aapka *naam* share karein pickup ke liye.`,
+        nextPhase: "checkout_name",
+        draftPatch: { type: "pickup" },
+      };
+    return { content: `*Delivery* ya *Pickup* — kaunsa prefer karein ge?` };
+  }
+
+  if (phase === "checkout_address") {
+    // Customer changed their mind — switch to pickup
+    if (/pickup|pick up/.test(t)) {
+      return {
+        content: `✅ Pickup select ho gaya.\n\n👤 Aapka *naam* share karein.`,
+        nextPhase: "checkout_name",
+        draftPatch: { type: "pickup", address: undefined },
+      };
+    }
+    const addr = input.trim();
+    if (!isValidAddress(addr)) {
+      return {
+        content: `⚠️ Yeh address valid nahi hai. Apna *poora address* likhein:\n\n✅ House 45 Street 12 Nazimabad Karachi\n✅ Block A DHA Karachi\n✅ Flat 302 Gulshan Karachi\n\n❌ "ok", "hello", "asdf" accept nahi hongay.`,
+      };
+    }
+    return {
+      content: `✅ Address note kar liya.\n\n👤 Ab aapka *naam* share karein.`,
+      nextPhase: "checkout_name",
+      draftPatch: { address: addr },
+    };
+  }
+
+  if (phase === "checkout_name") {
+    const name = extractName(input.trim());
+    const isDelivery = draft.type === "delivery";
+    const deliveryFee = isDelivery ? 150 : 0;
+    const cartTotal = draft.cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const total = cartTotal + deliveryFee;
+    const itemLines = draft.cart.map((i) => `  ${i.qty} x ${i.name} — PKR ${i.price * i.qty}`).join("\n");
+    const lines = [
+      `📋 *Order Summary*`,
+      ``,
+      itemLines,
+      ``,
+      isDelivery ? `🚚 Delivery Fee: PKR ${deliveryFee}` : null,
+      `💰 *Total: PKR ${total}*`,
+      ``,
+      isDelivery ? `📍 Address: ${draft.address}` : `🏪 Pickup`,
+      `👤 Name: ${name}`,
+      ``,
+      `Type *YES* to place your order.`,
+    ];
+    return {
+      content: lines.filter(Boolean).join("\n"),
+      nextPhase: "checkout_summary",
+      draftPatch: { name },
+    };
+  }
+
+  if (phase === "checkout_summary") {
+    if (/^(yes|haan|han|ji\b|okay|ok\b|theek|bilkul|zaroor|confirm|done|place|karo|laga do|order karo)/.test(t))
+      return { content: "", confirmed: true };
+    if (/cancel|no|nahi|nahin|wapas|back/.test(t))
+      return {
+        content: `Order cancel kar diya gaya.\n\nKoi item ka naam type karein nayi order shuru karne ke liye.`,
+        nextPhase: "browsing",
+        cartAction: { op: "clear" },
+      };
+    return { content: `*YES* likhein order place karne ke liye, ya *Cancel* likhein wapas jaane ke liye.` };
+  }
+
+  // ── checkout_review — order review before delivery/pickup ─────────────────
+  if (phase === "checkout_review") {
+    // CONFIRM_ORDER and any re-confirmation of checkout intent both advance to delivery/pickup
+    if (CONFIRM_ORDER.test(t) || CHECKOUT_TRIGGER.test(t)) {
+      return {
+        content: `*Delivery* ya *Pickup* — kaunsa prefer karein ge?`,
+        nextPhase: "checkout_type",
+      };
+    }
+    // Any modification (add/remove/change) falls through to active cart block below
+  }
+
+  // ── Active cart operations (browsing + item_selected + checkout_review) ────
+  if (phase === "browsing" || phase === "item_selected" || phase === "checkout_review") {
+
+    // Pending "add this item?" confirmation from a hypothetical price query
+    if (draft.pendingAdd) {
+      const pa = draft.pendingAdd;
+      if (/\b(yes|haan|han|ji\b|okay|ok\b|theek|bilkul|zaroor|add kar do|add karo|lagao|dena|chahiye|add it)\b/.test(t)) {
+        const existing = draft.cart.find((ci) => ci.name === pa.name);
+        const newCart = existing
+          ? draft.cart.map((ci) => ci.name === pa.name ? { ...ci, qty: ci.qty + pa.qty } : ci)
+          : [...draft.cart, pa];
+        return {
+          content: `*${pa.name}* (PKR ${pa.price}) added! ✅\n\n${cartSummary(newCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartAction: { op: "add", item: pa },
+          draftPatch: { lastItem: pa.name, pendingAdd: undefined, lastCategory: getItemCategory(pa.name) ?? draft.lastCategory },
+        };
+      }
+      if (NEGATIVE_REPLY.test(t)) {
+        return {
+          content: `Theek hai, add nahi kiya.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+          draftPatch: { pendingAdd: undefined },
+        };
+      }
+      // Unrelated message — fall through with pendingAdd cleared via draftPatch on whichever
+      // handler fires next (all item-add returns already include pendingAdd: undefined below)
+    }
+
+    // Cancel / clear entire cart
+    if (CART_CLEAR.test(t)) {
+      return {
+        content: `Aapka current order clear kar diya gaya hai.\n\nAap jab chahein nayi order shuru kar sakte hain. Menu dekhne ke liye item ka naam type karein.`,
+        nextPhase: "browsing",
+        cartAction: { op: "clear" },
+        draftPatch: { lastItem: undefined },
+      };
+    }
+
+    // "ek aur" / "one more" / "same again" — add 1 to the last touched item
+    if (EK_AUR_INTENT.test(t)) {
+      const target =
+        (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
+        (draft.cart.length === 1 ? draft.cart[0] : null);
+      if (target) {
+        const newQty = target.qty + 1;
+        const updatedCart = draft.cart.map((i) =>
+          i.name === target.name ? { ...i, qty: newQty } : i
+        );
+        return {
+          content: `${target.name} — ${target.qty} se ${newQty} kar diya.\n\n${cartSummary(updatedCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartAction: { op: "update_qty", name: target.name, qty: newQty },
+          draftPatch: { lastItem: target.name },
+        };
+      }
+      if (draft.cart.length > 0) {
+        const names = draft.cart.map((i) => `• ${i.name}`).join("\n");
+        return { content: `Kaunsa item ka quantity badhana hai?\n\n${names}` };
+      }
+    }
+
+    // Remove intent — "ek hata do" reduces by 1, "pasta hata do" removes entirely
+    if (REMOVE_INTENT.test(t)) {
+      const byQty = hasReduceQty(t);
+      const reduceAmt = byQty ? parseQty(t) : 0;
+
+      const target =
+        findInCart(draft.cart, t) ??
+        (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
+        (draft.cart.length === 1 ? draft.cart[0] : null);
+
+      if (!target) {
+        const names = draft.cart.map((i) => i.name).join(", ");
+        return { content: `Kaunsa item remove ya kam karna hai?\nCart: ${names || "khali hai"}.` };
+      }
+
+      if (byQty) {
+        const newQty = target.qty - reduceAmt;
+        if (newQty <= 0) {
+          const remaining = draft.cart.filter((i) => i.name !== target.name);
+          const note = remaining.length > 0 ? cartTrail : "";
+          return {
+            content: `${target.name} remove ho gaya.\n\n${remaining.length > 0 ? cartSummary(remaining) : "Cart khali hai."}${note}`,
+            nextPhase: remaining.length > 0 ? "item_selected" : "browsing",
+            cartAction: { op: "remove", name: target.name },
+            draftPatch: { lastItem: remaining[remaining.length - 1]?.name },
+          };
+        }
+        const updatedCart = draft.cart.map((i) => i.name === target.name ? { ...i, qty: newQty } : i);
+        return {
+          content: `${target.name} — ${target.qty} se ${newQty} kar diya.\n\n${cartSummary(updatedCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartAction: { op: "reduce", name: target.name, by: reduceAmt },
+          draftPatch: { lastItem: target.name },
+        };
+      }
+
+      // Remove entire item
+      const remaining = draft.cart.filter((i) => i.name !== target.name);
+      const note = remaining.length > 0 ? cartTrail : "";
+      return {
+        content: `${target.name} remove kar diya gaya.\n\n${remaining.length > 0 ? cartSummary(remaining) : "Cart khali hai."}${note}`,
+        nextPhase: remaining.length > 0 ? "item_selected" : "browsing",
+        cartAction: { op: "remove", name: target.name },
+        draftPatch: { lastItem: remaining[remaining.length - 1]?.name },
+      };
+    }
+
+    // Variant/size correction — "small nahi large", "jumbo kar do", "large kar do", "red sauce"
+    if (isVariantSwapMessage(t)) {
+      const swap = findVariantSwap(t, draft.lastItem, draft.cart);
+      if (swap) {
+        const newCart = draft.cart
+          .filter((i) => i.name !== swap.fromName)
+          .concat([{ name: swap.to.name, price: swap.to.price, qty: swap.qty }]);
+        return {
+          content: `*${swap.fromName}* updated to *${swap.to.name}*.\n\n${cartSummary(newCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartActions: [
+            { op: "remove", name: swap.fromName },
+            { op: "add", item: { name: swap.to.name, price: swap.to.price, qty: swap.qty } },
+          ],
+          draftPatch: { lastItem: swap.to.name },
+        };
+      }
+    }
+
+    // Full item replacement within same category — "Smoke Burger kar do", "Chicken chowmein kar do"
+    // Fires ONLY when isVariantSwapMessage didn't already handle it
+    if (!isVariantSwapMessage(t)) {
+      const replacement = findCategoryReplacement(t, draft.lastItem, draft.lastCategory, draft.cart);
+      if (replacement) {
+        const newCart = draft.cart
+          .filter((i) => i.name !== replacement.from.name)
+          .concat([{ name: replacement.to.name, price: replacement.to.price, qty: replacement.from.qty }]);
+        return {
+          content: `*${replacement.from.name}* ki jagah *${replacement.to.name}* (PKR ${replacement.to.price}) kar diya.\n\n${cartSummary(newCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartActions: [
+            { op: "remove", name: replacement.from.name },
+            { op: "add", item: { name: replacement.to.name, price: replacement.to.price, qty: replacement.from.qty } },
+          ],
+          draftPatch: {
+            lastItem: replacement.to.name,
+            lastCategory: getItemCategory(replacement.to.name) ?? draft.lastCategory,
+          },
+        };
+      }
+    }
+
+    // Soft decline — isVariantSwapMessage guard prevents "small nahi large" triggering this
+    if (NEGATIVE_REPLY.test(t) && !CHECKOUT_TRIGGER.test(t) && !isVariantSwapMessage(t)) {
+      if (draft.cart.length > 0) {
+        return {
+          content: `Theek hai!\n\n${cartSummary(draft.cart)}${cartTrail}`,
+        };
+      }
+      return {
+        content: `Koi baat nahi. Jab bhi order dena ho, main yahaan hoon!`,
+      };
+    }
+
+    // Standalone affirmative with active cart — "haan", "ok", "ji", "theek hai"
+    // Prevents these from falling through to confusing informational handlers
+    if (/^\s*(haan|han|yes|okay|ok|ji|g|bilkul|theek|theek hai|thik hai|sure|done|acha|achha)\s*[!.]*\s*$/.test(t) && draft.cart.length > 0) {
+      return {
+        content: `${cartSummary(draft.cart)}${cartTrail}`,
+      };
+    }
+
+    // Quantity update — "3 kar do", "Quantity 5 kar do", "2 ki jagah 4"
+    // Skipped when add-intent is present (e.g. "add kar do"), except "ki jagah" always wins
+    if (UPDATE_QTY_INTENT.test(t) && (!ORDER_INTENT.test(t) || /ki jagah/.test(t))) {
+      const target =
+        findInCart(draft.cart, t) ??
+        (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
+        (draft.cart.length === 1 ? draft.cart[0] : null);
+
+      if (target) {
+        let newQty: number;
+        if (/ki jagah/.test(t)) {
+          const nums = t.match(/\d+/g);
+          newQty = nums && nums.length >= 2 ? parseInt(nums[1]) : nums ? parseInt(nums[0]) : parseQty(t);
+        } else {
+          const nums = t.match(/\d+/g);
+          newQty = nums ? parseInt(nums[nums.length - 1]) : parseQty(t);
+        }
+        if (newQty < 1) newQty = 1;
+        const updatedCart = draft.cart.map((i) => i.name === target.name ? { ...i, qty: newQty } : i);
+        return {
+          content: `Quantity updated.\n\n${cartSummary(updatedCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartAction: { op: "update_qty", name: target.name, qty: newQty },
+          draftPatch: { lastItem: target.name },
+        };
+      }
+    }
+
+    // Checkout trigger — show order review before delivery/pickup
+    if (CHECKOUT_TRIGGER.test(t)) {
+      if (draft.cart.length === 0) {
+        return { content: `🛒 Pehle koi item select karein.\n\nMenu browse karein ya item ka naam type karein.` };
+      }
+      return {
+        content: reviewSummary(draft.cart),
+        nextPhase: "checkout_review",
+      };
+    }
+
+    // Hypothetical price query — "Agar ek Zinger add karun to total kya hoga?"
+    // Calculate preview WITHOUT touching the cart, then ask for confirmation
+    if (HYPOTHETICAL_INTENT.test(t) && draft.cart.length > 0) {
+      const cleaned = t
+        .replace(/\b(agar|agr|if\b|add karun|add karo|add karoon|add krun|to\b|total|kia|kya|hoga|hongy|price|kitna)\b/gi, " ")
+        .replace(/\s+/g, " ").trim();
+      const hypoItem = findMenuItem(cleaned, 1);
+      if (hypoItem) {
+        const qty = parseQty(t) || 1;
+        const currentTotal = draft.cart.reduce((s, i) => s + i.price * i.qty, 0);
+        const newTotal = currentTotal + hypoItem.price * qty;
+        return {
+          content: `*Agar ${qty} x ${hypoItem.name} add karein:*\n\nAbhI ka total: PKR ${currentTotal}\n+ ${qty} x ${hypoItem.name}: PKR ${hypoItem.price * qty}\n*Estimated Total: PKR ${newTotal}*\n\nKya aap *${hypoItem.name}* add karna chahenge?`,
+          draftPatch: { pendingAdd: { name: hypoItem.name, price: hypoItem.price, qty } },
+        };
+      }
+    }
+
+    // Context-aware price selection — "500 wala", "PKR 600", "700 ka item"
+    // Only fires when lastCategory is set and no other food item name is present
+    const priceReq = extractPriceRequest(t);
+    if (priceReq !== null && draft.lastCategory) {
+      const textWithoutPrice = t.replace(/\bpkr\s*\d+\b|\brs\.?\s*\d+\b|\b\d{3,4}\s*(?:wala|wali|ka\b|ki\b|da\b)?\b/gi, "").trim();
+      if (getFoodKeywords(textWithoutPrice).length === 0) {
+        const catKey = getCategoryKey(draft.lastCategory);
+        if (catKey) {
+          const matches = (MENU[catKey] as { items: { name: string; price: number }[] }).items.filter(
+            (i) => i.price === priceReq
+          );
+          if (matches.length === 1) {
+            const item = matches[0];
+            const qty = parseQty(textWithoutPrice) || 1;
+            const existing = draft.cart.find((ci) => ci.name === item.name);
+            const newCart = existing
+              ? draft.cart.map((ci) => ci.name === item.name ? { ...ci, qty: ci.qty + qty } : ci)
+              : [...draft.cart, { name: item.name, price: item.price, qty }];
+            return {
+              content: `*${item.name}* (PKR ${item.price}) added! ✅\n\n${cartSummary(newCart)}${cartTrail}`,
+              nextPhase: "item_selected",
+              cartAction: { op: "add", item: { name: item.name, price: item.price, qty } },
+              draftPatch: { lastItem: item.name, lastCategory: draft.lastCategory },
+            };
+          } else if (matches.length > 1) {
+            return {
+              content: `PKR ${priceReq} mein yeh options available hain:\n\n${matches.map((i) => `• *${i.name}* — PKR ${i.price}`).join("\n")}\n\nAap in mein se kaunsa order karna chahenge?`,
+              draftPatch: { lastCategory: draft.lastCategory },
+            };
+          } else {
+            return {
+              content: `Is category mein PKR ${priceReq} ka koi item available nahi hai.\n\nAvailable options:\n\n${listCategoryItems(draft.lastCategory)}`,
+              draftPatch: { lastCategory: draft.lastCategory },
+            };
+          }
+        }
+      }
+    }
+
+    // Add items — strict matching, single or multi-item in one message
+    const hasOrderSignal =
+      ORDER_INTENT.test(t) ||
+      /\d+/.test(t) ||
+      Object.keys(URDU_NUMS).some((w) => new RegExp(`\\b${w}\\b`).test(t));
+
+    if (hasOrderSignal) {
+      const segments = t.split(/[,،]|\baur\b|\band\b|\bor\b|\bplus\b|\bsaath\b|\bsath\b/i).map((s) => s.trim()).filter(Boolean);
+      const toAdd: Array<{ item: { name: string; price: number }; qty: number }> = [];
+      const errors: Array<{ ok: false; reason: "off_menu" | "ambiguous"; category?: string; term: string }> = [];
+      const seen = new Set<string>();
+
+      for (const seg of segments) {
+        const result = strictMatchSegment(seg);
+        if (result.ok) {
+          if (!seen.has(result.item.name)) {
+            seen.add(result.item.name);
+            toAdd.push({ item: result.item, qty: result.qty });
+          }
+        } else {
+          // Try sub-splitting at qty-word boundaries (e.g. "ek zinger ek pasta" → two items)
+          // Only applied when the primary match already failed.
+          const subSegs = subSplitAtQtyBoundaries(seg);
+          if (subSegs.length > 1) {
+            for (const sub of subSegs) {
+              const subResult = strictMatchSegment(sub);
+              if (subResult.ok) {
+                if (!seen.has(subResult.item.name)) {
+                  seen.add(subResult.item.name);
+                  toAdd.push({ item: subResult.item, qty: subResult.qty });
+                }
+              } else {
+                if (getFoodKeywords(sub).length > 0) errors.push(subResult);
+              }
+            }
+          } else {
+            // Only record error if segment contains meaningful food keywords
+            if (getFoodKeywords(seg).length > 0) errors.push(result);
+          }
+        }
+      }
+
+      // Helper: human-readable label from a term
+      const itemLabel = (term: string) =>
+        getFoodKeywords(term).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || term.trim();
+
+      if (toAdd.length > 0) {
+        let newCart = [...draft.cart];
+        const addedLines: string[] = [];
+        const actions: CartAction[] = [];
+        let lastAddedName: string | undefined;
+
+        for (const { item, qty } of toAdd) {
+          const existing = newCart.find((i) => i.name === item.name);
+          if (existing) {
+            newCart = newCart.map((i) => i.name === item.name ? { ...i, qty: i.qty + qty } : i);
+          } else {
+            newCart = [...newCart, { name: item.name, price: item.price, qty }];
+          }
+          addedLines.push(`${qty} x ${item.name}`);
+          actions.push({ op: "add", item: { name: item.name, price: item.price, qty } });
+          lastAddedName = item.name;
+        }
+
+        // Separate truly unavailable (off-menu) from category clarifications (ambiguous)
+        const unavailErrs = errors.filter((e) => e.reason === "off_menu");
+        const ambigErrs   = errors.filter((e) => e.reason === "ambiguous");
+
+        let content = `*Added:*\n${addedLines.join("\n")}`;
+
+        if (unavailErrs.length > 0) {
+          content += `\n\n*Unavailable:*\n${unavailErrs.map((e) => `• ${itemLabel(e.term)}`).join("\n")}`;
+        }
+
+        if (ambigErrs.length > 0) {
+          for (const err of ambigErrs) {
+            const catName = err.category ?? itemLabel(err.term).toLowerCase();
+            const cap = catName.charAt(0).toUpperCase() + catName.slice(1);
+            content += `\n\n*${cap} ke liye options:*\n${listCategoryItems(err.category)}`;
+          }
+          const labels = ambigErrs.map((e) => `*${e.category ?? itemLabel(e.term)}*`).join(" aur ");
+          content += `\n\nAap ${labels} mein se kaunsa option select karna chahenge?`;
+        } else {
+          content += `\n\n${cartSummary(newCart)}${cartTrail}`;
+        }
+
+        const pendingFromAmbigsA = ambigErrs.map((e) => ({
+          category: e.category!,
+          qty: parseQty(e.term),
+        }));
+
+        return {
+          content,
+          nextPhase: "item_selected",
+          cartActions: actions,
+          draftPatch: {
+            lastItem: lastAddedName,
+            pendingClarifications: pendingFromAmbigsA.length > 0 ? pendingFromAmbigsA : [],
+            lastCategory: (lastAddedName ? getItemCategory(lastAddedName) : null) ??
+              (ambigErrs.length > 0 ? ambigErrs[0].category : undefined) ??
+              draft.lastCategory,
+          },
+        };
+      }
+
+      // Nothing valid to add — all errors
+      if (errors.length > 0) {
+        const unavailErrs = errors.filter((e) => e.reason === "off_menu");
+        const ambigErrs   = errors.filter((e) => e.reason === "ambiguous");
+
+        const pendingFromAmbigs = ambigErrs.map((e) => ({
+          category: e.category!,
+          qty: parseQty(e.term),
+        }));
+
+        // Pure category clarifications — no unavailable items
+        if (ambigErrs.length > 0 && unavailErrs.length === 0) {
+          if (ambigErrs.length === 1) {
+            return {
+              content: categoryOptions(ambigErrs[0].category),
+              draftPatch: { pendingClarifications: pendingFromAmbigs, lastCategory: ambigErrs[0].category },
+            };
+          }
+          let content = "";
+          for (const err of ambigErrs) {
+            const catName = err.category ?? itemLabel(err.term).toLowerCase();
+            const cap = catName.charAt(0).toUpperCase() + catName.slice(1);
+            content += (content ? "\n\n" : "") + `*${cap} ke liye options:*\n${listCategoryItems(err.category)}`;
+          }
+          const labels = ambigErrs.map((e) => `*${e.category ?? itemLabel(e.term)}*`).join(" aur ");
+          content += `\n\nAap ${labels} mein se kaunsa option select karna chahenge?`;
+          return { content, draftPatch: { pendingClarifications: pendingFromAmbigs, lastCategory: ambigErrs[0].category } };
+        }
+
+        // Single off-menu item: check UNAVAIL_MAP first for a targeted response
+        if (errors.length === 1) {
+          const err = errors[0];
+          const label = itemLabel(err.term);
+          for (const entry of UNAVAIL_MAP) {
+            if (entry.pattern.test(err.term)) return { content: entry.alts };
+          }
+          if (err.reason === "ambiguous") {
+            return {
+              content: categoryOptions(err.category),
+              draftPatch: { pendingClarifications: pendingFromAmbigs, lastCategory: err.category },
+            };
+          }
+          return {
+            content: err.category
+              ? `*${label}* current menu mein available nahi hai.\nAap menu mein se available items order kar sakte hain.\n\n${categoryOptions(err.category)}`
+              : `*${label}* current menu mein available nahi hai.\n\nPlease Think Food menu mein se order karein.`,
+          };
+        }
+
+        // Multiple errors — mix of unavailable + possibly some ambiguous
+        let content = "";
+        if (unavailErrs.length > 0) {
+          content += `*Unavailable:*\n${unavailErrs.map((e) => `• ${itemLabel(e.term)}`).join("\n")}`;
+        }
+        if (ambigErrs.length > 0) {
+          for (const err of ambigErrs) {
+            const catName = err.category ?? itemLabel(err.term).toLowerCase();
+            const cap = catName.charAt(0).toUpperCase() + catName.slice(1);
+            content += (content ? "\n\n" : "") + `*${cap} ke liye options:*\n${listCategoryItems(err.category)}`;
+          }
+          const labels = ambigErrs.map((e) => `*${e.category ?? itemLabel(e.term)}*`).join(" aur ");
+          content += `\n\nAap ${labels} mein se kaunsa option select karna chahenge?`;
+          return { content, draftPatch: { pendingClarifications: pendingFromAmbigs, lastCategory: ambigErrs[0].category } };
+        }
+        content += `\n\nYeh items Think Food menu mein available nahi hain.\nPlease menu mein se available items order karein.`;
+        return { content };
+      }
+    }
+
+    // checkout_review fallback — nothing matched above, re-show review summary
+    if (phase === "checkout_review") {
+      return { content: reviewSummary(draft.cart) };
+    }
+  }
+
+  // ── Browsing: informational ────────────────────────────────────────────────
+
+  // Human escalation
+  if (/(manager|complaint|complain|supervisor|baat karni hai|baat chahiye|speak to human|staff se baat|human agent|real person|insaan se)/.test(t)) {
+    return {
+      content: `Hum aapki baat hamare team se karwayenge.\n\nPlease share karein:\n👤 *Aapka naam*\n📞 *Phone number*\n\nHamara team member aapko jald call karega.`,
+    };
+  }
+
+  // Greeting
+  if (/^(hi|hello|hey|salam|salaam|assalam|hola|yo)\b/.test(t)) {
+    return {
+      content: `👋 *Welcome to Think Food!*\n\nI'm your AI sales assistant. How can I help you today?\n\n📋 Browse our menu\n🛒 Place an order\n📍 Restaurant info`,
+    };
+  }
+
+  // Unavailable items — targeted alternatives via UNAVAIL_MAP
+  for (const entry of UNAVAIL_MAP) {
+    if (entry.pattern.test(t)) {
+      return { content: entry.alts };
+    }
+  }
+
+  // Budget query — with group support
+  if (/(\d{3,5}\s*mein|\d{3,5}\s*ka budget|mein\s*kya\s*(best|achha|milta|milega)|best milega|kya milega|kitne mein|budget|\d+\s*(log|banda|bande|logon|people|persons?)\s*ke liye)/.test(t)) {
+    const peopleMatch = t.match(/(\d+)\s*(log|banda|bande|logon|people|person)/);
+    const numPeople = peopleMatch ? parseInt(peopleMatch[1]) : 1;
+    const budgetMatch = t.match(/\b(\d{3,5})\b/);
+    const rawBudget = budgetMatch ? parseInt(budgetMatch[1]) : 0;
+
+    // Group with no budget — suggest sharing options
+    if (numPeople > 1 && rawBudget === 0) {
+      return {
+        content: `*${numPeople} logon ke liye* best options:\n\n🍕 *Pizza Large 12 inch* — PKR 1,200 (share karne ke liye perfect)\n🍔 *Zinger Burger* × ${numPeople} — PKR ${500 * numPeople}\n🍝 *Pasta Large* × ${numPeople} — PKR ${600 * numPeople}\n🍚 *Singaporean Rice* × ${numPeople} — PKR ${700 * numPeople}\n\nBudget bhi batayein — aur precise suggest kar sakta hoon!`,
+      };
+    }
+
+    const budget = rawBudget;
+    const perPerson = numPeople > 1 ? Math.floor(budget / numPeople) : budget;
+    const groupNote = numPeople > 1 ? ` (${numPeople} log — PKR ${perPerson} per person)` : "";
+
+    if (budget > 0 && perPerson < 400) {
+      return {
+        content: `PKR ${budget}${groupNote} mein unfortunately koi item nahi milega.\n\nHamare lowest:\n• Vegetable Rice — PKR 400\n• Chicken Fried Rice — PKR 450\n• Club Sandwich / Pasta Small / Zinger Burger — PKR 500`,
+      };
+    }
+    if (perPerson <= 500) {
+      return {
+        content: `PKR ${budget}${groupNote} ke liye best picks:\n\n🍚 *Vegetable Rice* — PKR 400\n🍚 *Chicken Fried Rice* — PKR 450\n🥪 *Club Sandwich* — PKR 500\n🍝 *Pasta Small* — PKR 500\n🍔 *Zinger Burger* — PKR 500\n\nSabse value-for-money options!`,
+      };
+    }
+    if (perPerson <= 750) {
+      const pizzaNote = numPeople > 1 && budget >= 1200 ? `\n🍕 *Pizza Large 12 inch* — PKR 1,200 _(${numPeople} logon mein share karein — best value!)_` : "";
+      return {
+        content: `PKR ${budget}${groupNote} ke liye best picks:\n\n🍔 *Think Food SP Burger* — PKR 550 _(house special)_\n🥪 *Grill Sandwich* — PKR 650\n🍚 *Singaporean Rice* — PKR 700 _(best-seller)_\n🍕 *Pizza Small 6 inch* — PKR 550${pizzaNote}\n\nKoi bhi choose karein — sab zabardast hain!`,
+      };
+    }
+    return {
+      content: `PKR ${budget}${groupNote} mein premium options:\n\n🥩 *Chicken Steak* — PKR 950 _(menu ka crown jewel)_\n🍕 *Pizza Regular 9 inch* — PKR 850\n🍕 *Think Food Special Pizza* — PKR 1,500 _(must try!)_\n🍝 *Alfredo Pasta white sauce* — PKR 850\n🍗 *Hot Shot 8 pcs with fries* — PKR 800\n\n${numPeople > 1 ? `${numPeople} logon ke liye *Think Food Special Pizza* share karna best value hoga!` : "Koi bhi choose karein — hum recommend karte hain Chicken Steak!"}`,
+    };
+  }
+
+  // Comparison — "Jumbo ya Zinger", "Rice ya Chowmein", "Pizza Regular ya Large"
+  if (/\b(ya|or|versus|vs)\b/.test(t)) {
+    const parts = t.split(/\s+(?:ya|or|versus|vs)\s+/);
+    if (parts.length >= 2) {
+      const itemA = findMenuItem(parts[0].trim(), 1);
+      const itemB = findMenuItem(parts[parts.length - 1].trim(), 1);
+      if (itemA && itemB && itemA.name !== itemB.name) {
+        const diff = Math.abs(itemA.price - itemB.price);
+        const cheaper = itemA.price <= itemB.price ? itemA : itemB;
+        const pricier = itemA.price <= itemB.price ? itemB : itemA;
+        const verdict =
+          diff === 0
+            ? `Dono same price par hain — taste ke hisaab se choose karein.`
+            : `PKR ${diff} ka farq hai. *${cheaper.name}* budget-friendly hai, jabke *${pricier.name}* thoda bada/premium hai.`;
+        return {
+          content: `📊 *Comparison*\n\n🔹 *${itemA.name}* — PKR ${itemA.price}\n🔸 *${itemB.name}* — PKR ${itemB.price}\n\n${verdict}\n\nKaunsa order karein?`,
+        };
+      }
+      // Category-level comparison
+      const isRice = (s: string) => /(rice|chawal)/.test(s);
+      const isNoodles = (s: string) => /(noodles?|chowmein|chow mein)/.test(s);
+      if ((isRice(parts[0]) && isNoodles(parts[1])) || (isNoodles(parts[0]) && isRice(parts[1]))) {
+        return {
+          content: `📊 *Rice vs Noodles*\n\n🍚 *Rice* — from PKR 400\n• Vegetable Rice — PKR 400\n• Chicken Fried Rice — PKR 450\n• Singaporean Rice — PKR 700 _(best-seller)_\n\n🍜 *Noodles* — from PKR 600\n• Vegetable Chowmein — PKR 600\n• Chicken Chowmein — PKR 650\n\nRice mein zyada variety aur better value hai. *Singaporean Rice* sabse popular option hai!`,
+        };
+      }
+    }
+  }
+
+  // Full menu — only when no specific category keyword is present, or customer explicitly asks for full/all menu
+  const hasCategoryWord = /\b(burger|zinger|jumbo|pizza|pasta|rice|noodles|chowmein|sandwich|roll|steak|starter|macaroni|alfredo)\b/.test(t);
+  if (
+    /\b(full menu|complete menu|poora menu|all items|sabhi items)\b/.test(t) ||
+    /\b(what (do you have|you have|is available)|kya hai|kya milta)\b/.test(t) ||
+    (!hasCategoryWord && /\bmenu\b/.test(t))
+  ) {
+    return {
+      content: `📋 *Think Food — Full Menu*\n\n${fmt("burgers")}\n\n${fmt("sandwiches")}\n\n${fmt("pizza")}\n\n${fmt("pizzaFries")}\n\n${fmt("rolls")}\n\n${fmt("pasta")}\n\n${fmt("noodles")}\n\n${fmt("rice")}\n\n${fmt("starters")}\n\n${fmt("steaks")}\n\n${fmt("toppings")}\n\nType any item name to order!`,
+    };
+  }
+
+  // Burgers
+  if (/\b(burger|zinger|jumbo|smoke burger|spicy stuff)\b/.test(t)) {
+    return {
+      content: `🍔 *Burger Menu*\n\n${fmt("burgers")}\n\n_Our *Think Food SP Burger* (PKR 550) is the house special!_\n\nItem ka naam type karein order karne ke liye.`,
+      draftPatch: { lastCategory: "burger" },
+    };
+  }
+
+  // Pizza
+  if (/\b(pizza)\b/.test(t)) {
+    return {
+      content: `🍕 *Pizza Menu*\n\n${fmt("pizza")}\n\n_Try our *Think Food Special Pizza* — the house favourite at PKR 1,500!_`,
+      draftPatch: { lastCategory: "pizza" },
+    };
+  }
+
+  // Pizza Fries & Toppings (explicit request)
+  if (/\b(pizza fries|topping|cheese topping|extra chicken)\b/.test(t)) {
+    return {
+      content: `🍟 *Pizza Fries & Toppings*\n\n${fmt("pizzaFries")}\n\n${fmt("toppings")}`,
+    };
+  }
+
+  // Rice
+  if (/(rice|chawal|singaporean)/.test(t)) {
+    return {
+      content: `🍚 *Rice Menu*\n\n${fmt("rice")}\n\n_Our *Singaporean Rice* (PKR 700) is a best-seller!_`,
+      draftPatch: { lastCategory: "rice" },
+    };
+  }
+
+  // Noodles
+  if (/(noodles?|chowmein|chow\s+mein)/.test(t)) {
+    return { content: `🍜 *Noodles Menu*\n\n${fmt("noodles")}`, draftPatch: { lastCategory: "chowmein" } };
+  }
+
+  // Pasta
+  if (/(pasta|macaroni|alfredo)/.test(t)) {
+    return { content: `🍝 *Pasta Menu*\n\n${fmt("pasta")}`, draftPatch: { lastCategory: "pasta" } };
+  }
+
+  // Chinese catch-all
+  if (/\b(chinese)\b/.test(t)) {
+    return {
+      content: `🍜 *Chinese Menu*\n\n${fmt("noodles")}\n\n${fmt("rice")}\n\n${fmt("pasta")}\n\n_Our *Singaporean Rice* (PKR 700) is a crowd favourite!_`,
+    };
+  }
+
+  // Sandwich
+  if (/\b(sandwich|sandwiches)\b/.test(t)) {
+    return {
+      content: `🥪 *Sandwich Menu*\n\n${fmt("sandwiches")}\n\n_Our *Grill Sandwich* (PKR 650) is loaded with flavour!_`,
+      draftPatch: { lastCategory: "sandwich" },
+    };
+  }
+
+  // Roll / Wrap
+  if (/\b(roll|wrap|gyro)\b/.test(t)) {
+    return { content: `🌯 *Roll*\n\n${fmt("rolls")}`, draftPatch: { lastCategory: "roll" } };
+  }
+
+  // Starter / pizza fries
+  if (/\b(starter|strips|hot shot|pizza fries)\b/.test(t)) {
+    return {
+      content: `🍗 *Starters & Pizza Fries*\n\n${fmt("starters")}\n\n${fmt("pizzaFries")}`,
+      draftPatch: { lastCategory: "starter" },
+    };
+  }
+
+  // Steak
+  if (/\b(steak)\b/.test(t)) {
+    return { content: `🥩 *Steaks*\n\n${fmt("steaks")}`, draftPatch: { lastCategory: "steak" } };
+  }
+
+  // Recommendation
+  if (/\b(recommend|suggest|popular|best|what.*try|favourite|favorite|kya lena chahiye|kya mangwao|kya order karoon)\b/.test(t)) {
+    return {
+      content: `⭐ *Think Food — Top Picks*\n\n🥇 *Think Food SP Burger* — PKR 550\n_House special. Most ordered burger._\n\n🥈 *Singaporean Rice* — PKR 700\n_Rich, loaded with chicken. Best-seller._\n\n🥉 *Think Food Special Pizza* — PKR 1,500\n_Go-to for groups. Absolutely worth it._\n\n🍗 *Chicken Strips 6 pcs with fries* — PKR 750\n_Crispy, filling, crowd favourite._\n\n🥩 *Chicken Steak* — PKR 950\n_Grilled perfection. Hearty meal._\n\nKoi bhi naam type karein — order ready in seconds!`,
+    };
+  }
+
+  // No deals
+  if (/\b(combo|deal|today|aaj ka|special offer|offer)\b/.test(t)) {
+    return {
+      content: `Think Food ke paas koi official deal ya fixed combo nahi hai.\n\nAap menu se apni pasand ke items choose kar sakte hain:\n\n🍔 Burgers — from PKR 500\n🍕 Pizza — from PKR 550\n🥪 Sandwiches — from PKR 500`,
+    };
+  }
+
+  // Location / address / branch
+  if (/\b(address|location|kahan|located|branch|shop|maps?|directions?|bhej do|send karo|restaurant ka address|branch address)\b/.test(t)) {
+    return {
+      content: `📍 *Think Food Location:*\n\n${INFO.address}\n\n🗺️ *Google Maps:*\n${INFO.mapsUrl}\n\nYou can visit us between *${INFO.timing}*.`,
+    };
+  }
+
+  // Delivery charges
+  if (/\b(delivery charge|delivery fee|delivery ka charge|delivery cost|delivery kitne|delivery charges|charge kitna)\b/.test(t)) {
+    return {
+      content: `🚚 *Delivery Charges:* PKR ${INFO.deliveryFee}\n\nDelivery charges may vary based on distance if restaurant policy changes in future.`,
+    };
+  }
+
+  // Delivery time
+  if (/\b(delivery time|kitne time|kitni der|kitne minutes|how long|how many minutes|order time|deliver hoga|lagegi|lagega|estimated)\b/.test(t)) {
+    return {
+      content: `⏱️ *Estimated Delivery Time:* ${INFO.deliveryTime} after order confirmation.\n\nAapka order pehle *Pending Verification* mein jaega. Hamare staff aapko confirm karne ke liye call karein ge, phir preparation aur delivery shuru hogi.`,
+    };
+  }
+
+  // General restaurant info (timing / phone / contact)
+  if (/\b(timing|time|open|hours|phone|contact|number|info|whatsapp)\b/.test(t)) {
+    return {
+      content: `📋 *Think Food — Restaurant Info*\n\n📌 *Address:*\n${INFO.address}\n\n🕕 *Opening Hours:* ${INFO.timing}\n\n📞 *WhatsApp Only:* ${INFO.phone}\n\n🚚 *Delivery Charges:* PKR ${INFO.deliveryFee}\n⏱️ *Delivery Time:* ${INFO.deliveryTime}`,
+    };
+  }
+
+  // Checkout trigger (fallback for non-cart phases)
+  if (CHECKOUT_TRIGGER.test(t)) {
+    if (draft.cart.length > 0) {
+      return {
+        content: reviewSummary(draft.cart),
+        nextPhase: "checkout_review",
+      };
+    }
+    return { content: `🛒 Pehle koi item select karein.\n\nMenu browse karein ya item ka naam type karein.` };
+  }
+
+  // Order with item name (fallback)
+  if (ORDER_INTENT.test(t) || /\b(order|place|buy)\b/.test(t)) {
+    const items = extractItems(t);
+    if (items.length > 0) {
+      let newCart = [...draft.cart];
+      const addedLines: string[] = [];
+      const actions: CartAction[] = [];
+      let lastAddedName: string | undefined;
+      for (const { item, qty } of items) {
+        const existing = newCart.find((i) => i.name === item.name);
+        if (existing) {
+          newCart = newCart.map((i) => i.name === item.name ? { ...i, qty: i.qty + qty } : i);
+        } else {
+          newCart = [...newCart, { name: item.name, price: item.price, qty }];
+        }
+        addedLines.push(`${qty} x ${item.name}`);
+        actions.push({ op: "add", item: { name: item.name, price: item.price, qty } });
+        lastAddedName = item.name;
+      }
+      const addedText = addedLines.length === 1 ? `${addedLines[0]} added.` : `${addedLines.join(", ")} added.`;
+      return {
+        content: `${addedText}\n\n${cartSummary(newCart)}${cartTrail}`,
+        nextPhase: "item_selected",
+        cartActions: actions,
+        draftPatch: { lastItem: lastAddedName },
+      };
+    }
+    return {
+      content: `🛒 *Kya order karna chahenge?*\n\n🍔 *Burgers* — from PKR 500\n🍕 *Pizza* — from PKR 550\n🥪 *Sandwiches* — from PKR 500\n🍜 *Chinese* — from PKR 400\n🍝 *Pasta* — from PKR 500\n\nItem name type karein ya menu browse karein!`,
+    };
+  }
+
+  // Price question
+  if (/\b(price|cost|how much|kitna|rate|pkr)\b/.test(t)) {
+    const item = findMenuItem(t);
+    if (item)
+      return { content: `*${item.name}* — *PKR ${item.price}*.` };
+    return {
+      content: `Quick price overview:\n\n🍔 *Burgers* — PKR 500–750\n🍕 *Pizza* — PKR 550–1,600\n🥪 *Sandwiches* — PKR 500–650\n🍜 *Noodles* — PKR 600–650\n🍚 *Rice* — PKR 400–750\n🍝 *Pasta* — PKR 500–850\n🍗 *Starters* — PKR 750–800\n🥩 *Steak* — PKR 950`,
+    };
+  }
+
+  // Off-topic / unrecognised — stay scoped to Think Food
+  if (draft.cart.length > 0) {
+    return {
+      content: `Main Think Food ke menu, prices, order aur delivery se related help kar sakta hoon.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+    };
+  }
+  return {
+    content: `Main Think Food ke menu, prices, order aur delivery se related help kar sakta hoon.\n\nOrder karne ke liye item ka naam type karein, ya *menu* likhein puri list dekhne ke liye.`,
+  };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function WhatsAppSimulator() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [input, setInput] = useState("");
+  const [phase, setPhase] = useState<Phase>("browsing");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+  const phaseRef = useRef<Phase>("browsing");
+  const draftRef = useRef<Draft>({ cart: [] });
+
+  function applyPhase(p: Phase) {
+    phaseRef.current = p;
+    setPhase(p);
+  }
+
+  function applyDraftPatch(patch: Partial<Omit<Draft, "cart">>) {
+    draftRef.current = { ...draftRef.current, ...patch };
+  }
+
+  function applyCartAction(action: CartAction) {
+    if (action.op === "add") {
+      const existing = draftRef.current.cart.find((i) => i.name === action.item.name);
+      if (existing) {
+        draftRef.current = {
+          ...draftRef.current,
+          cart: draftRef.current.cart.map((i) =>
+            i.name === action.item.name ? { ...i, qty: i.qty + action.item.qty } : i
+          ),
+        };
+      } else {
+        draftRef.current = {
+          ...draftRef.current,
+          cart: [...draftRef.current.cart, action.item],
+        };
+      }
+    } else if (action.op === "reduce") {
+      const existing = draftRef.current.cart.find((i) => i.name === action.name);
+      if (existing) {
+        const newQty = existing.qty - action.by;
+        if (newQty <= 0) {
+          draftRef.current = { ...draftRef.current, cart: draftRef.current.cart.filter((i) => i.name !== action.name) };
+        } else {
+          draftRef.current = { ...draftRef.current, cart: draftRef.current.cart.map((i) => i.name === action.name ? { ...i, qty: newQty } : i) };
+        }
+      }
+    } else if (action.op === "remove") {
+      draftRef.current = {
+        ...draftRef.current,
+        cart: draftRef.current.cart.filter((i) => i.name !== action.name),
+      };
+    } else if (action.op === "update_qty") {
+      draftRef.current = {
+        ...draftRef.current,
+        cart: draftRef.current.cart.map((i) =>
+          i.name === action.name ? { ...i, qty: action.qty } : i
+        ),
+      };
+    } else {
+      draftRef.current = { ...draftRef.current, cart: [] };
+    }
+  }
+
+  function addAI(content: string) {
+    setMessages((prev) => [...prev, { id: uid(), role: "ai", content, time: getTime() }]);
+  }
+
+  function addCustomer(content: string) {
+    setMessages((prev) => [...prev, { id: uid(), role: "customer", content, time: getTime() }]);
+  }
+
+  function respond(text: string) {
+    if (isTyping || phaseRef.current === "done") return;
+    addCustomer(text);
+    setIsTyping(true);
+
+    setTimeout(() => {
+      setIsTyping(false);
+      const out = ai(text, phaseRef.current, draftRef.current);
+
+      if (out.confirmed) {
+        const orderId = String(1007 + Math.floor(Math.random() * 90));
+        addAI(
+          `✅ *Order received successfully.*\n\nOrder Number: *#${orderId}*\n\nStatus: ⏳ *Pending Verification*\n\nOur team will call you shortly to confirm your order.\n\nThank you for choosing *Think Food!* 🍔`
+        );
+        applyPhase("done");
+        return;
+      }
+
+      addAI(out.content);
+      if (out.nextPhase) applyPhase(out.nextPhase);
+      if (out.draftPatch) applyDraftPatch(out.draftPatch);
+      if (out.cartActions) {
+        for (const action of out.cartActions) applyCartAction(action);
+      } else if (out.cartAction) {
+        applyCartAction(out.cartAction);
+      }
+    }, 1200);
+  }
+
+  function handleSend() {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    respond(text);
+  }
+
+  function handleKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") handleSend();
+  }
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    setIsTyping(true);
+    const t = setTimeout(() => {
+      setIsTyping(false);
+      addAI(
+        `👋 *Welcome to Think Food!*\n\nI'm your AI sales assistant. How can I help you today?\n\n📋 View our menu\n🛒 Place an order\n📍 Restaurant info`
+      );
+    }, 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
+
+  function reset() {
+    setMessages([]);
+    setIsTyping(false);
+    setInput("");
+    applyPhase("browsing");
+    draftRef.current = { cart: [] };
+    initialized.current = false;
+    setTimeout(() => {
+      if (initialized.current) return;
+      initialized.current = true;
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        addAI(
+          `👋 *Welcome to Think Food!*\n\nI'm your AI sales assistant. How can I help you today?\n\n📋 View our menu\n🛒 Place an order\n📍 Restaurant info`
+        );
+      }, 800);
+    }, 30);
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-[#0b141a]">
+      {/* Header */}
+      <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 bg-[#202c33] border-b border-[#2a3942]">
+        <div className="w-9 h-9 rounded-full bg-[#25d366] flex items-center justify-center shrink-0 text-[#111b21] font-bold text-sm select-none">
+          TF
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[#e9edef] font-semibold text-sm leading-tight">Think Food</div>
+          <div className="text-[#25d366] text-xs">Online</div>
+        </div>
+        <div className="flex items-center gap-3 text-[#8696a0]">
+          <Phone size={17} />
+          <button
+            onClick={reset}
+            title="Reset conversation"
+            className="hover:text-[#e9edef] transition-colors"
+          >
+            <RefreshCw size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+        {messages.map((msg, idx) => {
+          const isFirst = idx === 0 || messages[idx - 1].role !== msg.role;
+          return (
+            <div
+              key={msg.id}
+              className={cn(
+                "flex",
+                msg.role === "customer" ? "justify-end" : "justify-start",
+                isFirst && idx > 0 ? "mt-3" : "mt-0.5"
+              )}
+            >
+              <div
+                className={cn(
+                  "relative max-w-[82%] px-3 pt-1.5 pb-1 text-[13px] leading-[1.45] shadow-sm",
+                  msg.role === "customer"
+                    ? "bg-[#005c4b] text-[#e9edef] rounded-[7px] rounded-tr-[2px]"
+                    : "bg-[#202c33] text-[#e9edef] rounded-[7px] rounded-tl-[2px]"
+                )}
+              >
+                <p className="whitespace-pre-line">{parseContent(msg.content)}</p>
+                <span
+                  className={cn(
+                    "block text-[10px] mt-0.5 select-none",
+                    msg.role === "customer" ? "text-right text-[#8696a0]" : "text-[#8696a0]"
+                  )}
+                >
+                  {msg.time}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+
+        {isTyping && (
+          <div className="flex justify-start mt-2">
+            <div className="bg-[#202c33] rounded-[7px] rounded-tl-[2px] px-4 py-3">
+              <div className="flex gap-1 items-center">
+                {[0, 160, 320].map((d) => (
+                  <span
+                    key={d}
+                    className="w-[6px] h-[6px] rounded-full bg-[#8696a0] animate-bounce"
+                    style={{ animationDelay: `${d}ms` }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input bar */}
+      <div className="shrink-0 bg-[#202c33] border-t border-[#2a3942] px-3 py-2 flex items-center gap-2">
+        {phase === "done" ? (
+          <p className="flex-1 text-center text-[#8696a0] text-xs py-1">
+            Order submitted — tap <RefreshCw size={11} className="inline" /> to start a new chat
+          </p>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder="Type a message"
+              disabled={isTyping}
+              className="flex-1 bg-[#2a3942] text-[#e9edef] placeholder-[#8696a0] text-sm px-4 py-2 rounded-full outline-none border border-transparent focus:border-[#25d366]/30 transition-colors disabled:opacity-50"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isTyping}
+              className="w-9 h-9 rounded-full bg-[#25d366] flex items-center justify-center shrink-0 text-[#111b21] disabled:opacity-40 hover:bg-[#22c55e] active:bg-[#16a34a] transition-colors"
+            >
+              <Send size={15} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
