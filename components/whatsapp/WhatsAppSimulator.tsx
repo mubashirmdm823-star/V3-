@@ -759,7 +759,7 @@ const NEGATIVE_REPLY =
   /\b(nahi|nahin|no|nope|abhi nahi|not now|baad mein|later|rehne do|rehne|zaroorat nahi|chahiye nahi|mat|theek hai baad mein|ruko|ruk jao|wait|sochta hun|sochti hun|filhal nahi|abhi sirf)\b/;
 
 const CART_CLEAR =
-  /(cancel order|cart clear|sab hata do|cart empty|sabhi items hata|order hatao|clear cart|order clear|poora order cancel|puri order cancel|sab remove|sab delete|sab nikal|remove all|delete all|empty cart|poori cart|puri cart|poora order hata|poora order remove|sab cancel)/;
+  /(cancel order|cart clear|sab hata do|cart empty|sabhi items hata|order hatao|clear cart|order clear|poora order cancel|puri order cancel|sab remove|sab delete|sab nikal|remove all|delete all|empty cart|poori cart|puri cart|poora order hata|poora order remove|sab cancel|remove everything|clear everything|delete everything|cancel everything|clear all|cancel all|remove complete order|clear complete order|remove whole order|remove entire order|clear entire order|cancel complete order|cancel entire order|cancel whole order)/;
 
 // Replacement connector phrases — split point between remove-target (left) and add-target (right)
 const CROSS_REPLACE_TRIGGER =
