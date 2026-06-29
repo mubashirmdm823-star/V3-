@@ -192,7 +192,7 @@ const SINGLE_DEFAULTS: Record<string, string> = {
 const CATEGORY_ONLY = new Set([
   "rice","chawal","burger","noodles","sandwich","sandwiches",
   "pizza","roll","rolls","starter","starters",
-  "pasta","chowmein",
+  "pasta","chowmein","fries",
 ]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -293,7 +293,10 @@ const URDU_NUMS: Record<string, number> = {
 function parseQty(text: string): number {
   const digit = text.match(/\b([1-9]\d*)\b/);
   if (digit) return parseInt(digit[1]);
+  // "do" in "kar do / de do / dila do / bana do / hata do" is a verb, not the number 2
+  const doIsVerb = /\b(?:kar|de|dila|bana|hata|laga|bhej)\s+do\b/.test(text);
   for (const [word, num] of Object.entries(URDU_NUMS)) {
+    if (word === "do" && doIsVerb) continue;
     if (new RegExp(`\\b${word}\\b`).test(text)) return num;
   }
   return 1;
@@ -335,6 +338,25 @@ function reviewSummary(cart: CartItem[]): string {
 
 function findMenuItem(text: string, minScore = 1): { name: string; price: number } | null {
   const t = text.toLowerCase();
+
+  // Category-locked search: when a known category word is present, only search that category.
+  // This prevents "chicken noodles" from matching "Chicken Sandwich", etc.
+  const tWords = t.split(/\s+/).map((w) => w.replace(/[^a-z]/g, ""));
+  const catWord = tWords.find((w) => w.length > 2 && CATEGORY_ONLY.has(w));
+  if (catWord) {
+    const catKey = getCategoryKey(catWord);
+    if (catKey) {
+      let best: { name: string; price: number } | null = null;
+      let bestScore = 0;
+      for (const item of MENU[catKey].items) {
+        const words = item.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+        const score = words.filter((w) => t.includes(w)).length;
+        if (score > bestScore) { bestScore = score; best = item; }
+      }
+      return bestScore >= minScore ? best : null;
+    }
+  }
+
   let best: { name: string; price: number } | null = null;
   let bestScore = 0;
   for (const cat of Object.values(MENU)) {
@@ -402,6 +424,7 @@ function getCategoryKey(category: string): keyof typeof MENU | null {
     sandwich: "sandwiches", sandwiches: "sandwiches",
     roll: "rolls", rolls: "rolls",
     starter: "starters", starters: "starters",
+    fries: "pizzaFries",
   };
   return map[category] ?? null;
 }
@@ -627,6 +650,7 @@ function listCategoryItems(category?: string): string {
     case "sandwich": case "sandwiches": return list("sandwiches");
     case "roll": case "rolls":    return list("rolls");
     case "starter": case "starters": return list("starters");
+    case "fries": case "pizzafries": return list("pizzaFries");
     default:                      return "";
   }
 }
@@ -657,6 +681,9 @@ function categoryOptions(category?: string): string {
     case "starter":
     case "starters":
       return `🍗 *Available Starter Options:*\n\n${list("starters")}${ask("starter")}`;
+    case "fries":
+    case "pizzafries":
+      return `🍟 *Pizza Fries:*\n\n${list("pizzaFries")}\n\nAap small box lena chahenge ya large box?`;
     default:
       return `Think Food menu se order karein:\n\n🍔 Burgers — from PKR 500\n🍕 Pizza — from PKR 550\n🥪 Sandwiches — from PKR 500\n🍜 Chinese — from PKR 400\n🍝 Pasta — from PKR 500\n🍚 Rice — from PKR 400`;
   }
@@ -675,7 +702,7 @@ const ORDER_SUMMARY_INTENT =
   /(mera order|mere order|order dikhao|order batao|cart dikhao|kya order|show order|order summary|current order|what.*order)/;
 
 const CHECKOUT_TRIGGER =
-  /(place order|order place|place kar do|order karden|place karo|order kar do|order karo|karo order|bas yahi|checkout|proceed|continue|isi order|yahi chahiye|submit order|complete order|order submit|order complete|order send|order bhejo|aage chalo|order final)/;
+  /(place order|order place|place kar do|kar do place|karo place|order karden|place karo|order kar do|order karo|karo order|bas yahi|bs yahi|bas yehi|bs yehi|bas itna|bs itna|yahi order|yahi chahiye|yehi chahiye|checkout|proceed|continue|isi order|isi ko place|order confirm|confirm order|confirm kar do|submit order|complete order|order submit|order complete|order send|order bhejo|aage chalo|order final|final kar do)/;
 
 // Explicit order confirmation — moves from checkout_review to Delivery/Pickup
 const CONFIRM_ORDER =
@@ -777,16 +804,24 @@ const UNAVAIL_MAP: Array<{ pattern: RegExp; label: string; alts: string }> = [
 
 function normalizeSpelling(text: string): string {
   return text
-    .replace(/\bzngr\b/gi,     "zinger")
-    .replace(/\bznger\b/gi,    "zinger")
-    .replace(/\bchowmin\b/gi,  "chowmein")
-    .replace(/\bchowmain\b/gi, "chowmein")
-    .replace(/\bchowmien\b/gi, "chowmein")
-    .replace(/\bchowmine\b/gi, "chowmein")
-    .replace(/\bpzza\b/gi,     "pizza")
-    .replace(/\bbrgr\b/gi,     "burger")
-    .replace(/\bpsta\b/gi,     "pasta")
-    .replace(/\bsndwch\b/gi,   "sandwich")
+    .replace(/\bzngr\b/gi,       "zinger")
+    .replace(/\bznger\b/gi,      "zinger")
+    .replace(/\bchowmin\b/gi,    "chowmein")
+    .replace(/\bchowmain\b/gi,   "chowmein")
+    .replace(/\bchowmien\b/gi,   "chowmein")
+    .replace(/\bchowmine\b/gi,   "chowmein")
+    .replace(/\bnoodels\b/gi,    "noodles")
+    .replace(/\bnoodl\b/gi,      "noodles")
+    .replace(/\bnoodel\b/gi,     "noodles")
+    .replace(/\bchikn\b/gi,      "chicken")
+    .replace(/\bchiken\b/gi,     "chicken")
+    .replace(/\bchickn\b/gi,     "chicken")
+    .replace(/\bpiza\b/gi,       "pizza")
+    .replace(/\bpzza\b/gi,       "pizza")
+    .replace(/\bbrgr\b/gi,       "burger")
+    .replace(/\bpsta\b/gi,       "pasta")
+    .replace(/\bsndwch\b/gi,     "sandwich")
+    .replace(/\bsandwitch\b/gi,  "sandwich")
     .replace(/\bnhi\b/gi,      "nahi")
     .replace(/\bnhin\b/gi,     "nahin")
     .replace(/\bhan\b/gi,      "haan")
@@ -818,6 +853,9 @@ function normalizeSpelling(text: string): string {
     .replace(/\bkitny\b/gi,    "kitna")
     // Info/show request variants
     .replace(/\bdikhado\b/gi,  "dikhao")
+    // Plural → singular for consistent menu matching
+    .replace(/\bhot shots\b/gi, "hot shot")
+    .replace(/\bsteaks\b/gi,    "steak")
     // Pause/wait shorthand
     .replace(/\brukja\b/gi,    "ruk jao")
     .replace(/\brukjao\b/gi,   "ruk jao");
@@ -826,6 +864,69 @@ function normalizeSpelling(text: string): string {
 // "ek aur" / "one more" — add 1 to the last touched item
 const EK_AUR_INTENT =
   /\b(ek aur|aur ek|ek or|one more|aur wahi|same aur|wahi wala aur|same again|another one|add another|same item|ek aur do)\b/;
+
+// Pizza topping requests — detected before generic order matching
+const TOPPING_INTENT =
+  /\b(topping|toppings|cheese topping|extra cheese|extra chicken|olive mushroom|olive|mushroom|jalapeno|pizza add.?on|add.?on)\b/;
+
+// Returns the size of the most recently added pizza in the cart
+function getPizzaSizeFromCart(cart: CartItem[]): "large" | "medium" | "small" | null {
+  for (let i = cart.length - 1; i >= 0; i--) {
+    if (getItemCategory(cart[i].name) === "pizza") {
+      const n = cart[i].name.toLowerCase();
+      if (n.includes("large") || n.includes("12 inch")) return "large";
+      if (n.includes("regular") || n.includes("9 inch")) return "medium";
+      if (n.includes("small") || n.includes("6 inch")) return "small";
+      return "large"; // Think Food Special / Mexican Pizza → use large toppings
+    }
+  }
+  return null;
+}
+
+// Matches a customer's topping request to the right menu item using pizza size context
+function matchTopping(text: string, pizzaSize: "large" | "medium" | "small" | null): { name: string; price: number } | null {
+  const t = text.toLowerCase();
+  const size = pizzaSize ?? "large";
+
+  if (/\b(olive|mushroom|jalapeno)\b/.test(t))
+    return MENU.toppings.items.find((i) => i.name === "Olive Mushroom Jalapeno") ?? null;
+
+  if (/\b(extra cheese|cheese topping|cheese)\b/.test(t)) {
+    const name = size === "large" ? "Pizza Large Cheese Topping"
+      : size === "medium" ? "Pizza Medium Cheese Topping"
+      : "Pizza Small Cheese Topping";
+    return MENU.toppings.items.find((i) => i.name === name) ?? null;
+  }
+
+  if (/\b(extra chicken)\b/.test(t)) {
+    const name = size === "large" ? "Extra Chicken Large"
+      : size === "medium" ? "Extra Chicken Medium"
+      : "Extra Chicken Small";
+    return MENU.toppings.items.find((i) => i.name === name) ?? null;
+  }
+
+  return null;
+}
+
+// Returns topping suggestion text sized to the pizza that was just added
+function pizzaToppingSuggestion(pizzaName: string): string {
+  const n = pizzaName.toLowerCase();
+  let cheese: string, extraChicken: string;
+  if (n.includes("large") || n.includes("12 inch")) {
+    cheese = "Pizza Large Cheese Topping — PKR 250";
+    extraChicken = "Extra Chicken Large — PKR 200";
+  } else if (n.includes("regular") || n.includes("9 inch")) {
+    cheese = "Pizza Medium Cheese Topping — PKR 200";
+    extraChicken = "Extra Chicken Medium — PKR 200";
+  } else if (n.includes("small") || n.includes("6 inch")) {
+    cheese = "Pizza Small Cheese Topping — PKR 150";
+    extraChicken = "Extra Chicken Small — PKR 150";
+  } else {
+    cheese = "Pizza Large/Medium/Small Cheese Topping";
+    extraChicken = "Extra Chicken Large/Medium/Small";
+  }
+  return `\n\n🍕 *Pizza add-ons bhi available hain:*\n• ${cheese}\n• ${extraChicken}\n• Olive Mushroom Jalapeno — PKR 150\n\nKoi topping add karna chahein to bata dein!`;
+}
 
 // ─── AI Logic ─────────────────────────────────────────────────────────────────
 
@@ -1022,6 +1123,81 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
   // ── Active cart operations (browsing + item_selected + checkout_review) ────
   if (phase === "browsing" || phase === "item_selected" || phase === "checkout_review") {
 
+    // ── Checkout intent — highest priority, before any item/quantity logic ──
+    if (CHECKOUT_TRIGGER.test(t)) {
+      // If the message also names a valid menu item, add it first then show review
+      const _coSegs = t.split(/[,،]|\baur\b|\band\b|\bor\b|\bplus\b|\bsaath\b|\bsath\b/i).map((s) => s.trim()).filter(Boolean);
+      const _coItems: Array<{ item: { name: string; price: number }; qty: number }> = [];
+      const _coSeen = new Set<string>();
+      for (const seg of _coSegs) {
+        const r = strictMatchSegment(seg);
+        if (r.ok && !_coSeen.has(r.item.name)) {
+          _coSeen.add(r.item.name);
+          _coItems.push({ item: r.item, qty: r.qty });
+        }
+      }
+      if (_coItems.length > 0) {
+        let _coCart = [...draft.cart];
+        const _coLines: string[] = [];
+        const _coActions: CartAction[] = [];
+        let _coLast: string | undefined;
+        for (const { item, qty } of _coItems) {
+          const ex = _coCart.find((i) => i.name === item.name);
+          if (ex) {
+            _coCart = _coCart.map((i) => i.name === item.name ? { ...i, qty: i.qty + qty } : i);
+          } else {
+            _coCart = [..._coCart, { name: item.name, price: item.price, qty }];
+          }
+          _coLines.push(`${qty} x ${item.name}`);
+          _coActions.push({ op: "add", item: { name: item.name, price: item.price, qty } });
+          _coLast = item.name;
+        }
+        return {
+          content: `*Added:*\n${_coLines.join("\n")}\n\n${reviewSummary(_coCart)}`,
+          nextPhase: "checkout_review",
+          cartActions: _coActions,
+          draftPatch: {
+            lastItem: _coLast,
+            pendingClarifications: [],
+            lastCategory: (_coLast ? getItemCategory(_coLast) : null) ?? draft.lastCategory,
+          },
+        };
+      }
+      // Pure checkout intent — no valid item in this message
+      if (draft.cart.length === 0) {
+        return { content: `🛒 Pehle koi item select karein.\n\nMenu browse karein ya item ka naam type karein.` };
+      }
+      return {
+        content: reviewSummary(draft.cart),
+        nextPhase: "checkout_review",
+      };
+    }
+
+    // ── Topping request — checked early so "extra cheese/chicken/olive" never mismatch ──
+    if (TOPPING_INTENT.test(t)) {
+      const pizzaSize = getPizzaSizeFromCart(draft.cart);
+      const toppingItem = matchTopping(t, pizzaSize);
+      // Only auto-add topping if pizza already in cart; otherwise show topping info
+      const toppingOrderIntent = (ORDER_INTENT.test(t) || /\d+/.test(t)) && pizzaSize !== null;
+      if (toppingItem && toppingOrderIntent) {
+        const qty = parseQty(t);
+        const existing = draft.cart.find((ci) => ci.name === toppingItem.name);
+        const newCart = existing
+          ? draft.cart.map((ci) => ci.name === toppingItem.name ? { ...ci, qty: ci.qty + qty } : ci)
+          : [...draft.cart, { name: toppingItem.name, price: toppingItem.price, qty }];
+        return {
+          content: `*${toppingItem.name}* (PKR ${toppingItem.price}) added! ✅\n\n${cartSummary(newCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartAction: { op: "add", item: { name: toppingItem.name, price: toppingItem.price, qty } },
+          draftPatch: { lastItem: toppingItem.name, pendingAdd: undefined },
+        };
+      }
+      // Topping inquiry or unresolved — show full topping menu
+      return {
+        content: `🍕 *Extra Cheese & Chicken Topping:*\n\n${MENU.toppings.items.map((i) => `• ${i.name} — PKR ${i.price}`).join("\n")}\n\nKaunsa add karna chahein?`,
+      };
+    }
+
     // Pending "add this item?" confirmation from a hypothetical price query
     if (draft.pendingAdd) {
       const pa = draft.pendingAdd;
@@ -1217,17 +1393,6 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
       }
     }
 
-    // Checkout trigger — show order review before delivery/pickup
-    if (CHECKOUT_TRIGGER.test(t)) {
-      if (draft.cart.length === 0) {
-        return { content: `🛒 Pehle koi item select karein.\n\nMenu browse karein ya item ka naam type karein.` };
-      }
-      return {
-        content: reviewSummary(draft.cart),
-        nextPhase: "checkout_review",
-      };
-    }
-
     // Hypothetical price query — "Agar ek Zinger add karun to total kya hoga?"
     // Calculate preview WITHOUT touching the cart, then ask for confirmation
     if (HYPOTHETICAL_INTENT.test(t) && draft.cart.length > 0) {
@@ -1369,6 +1534,9 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
           content += `\n\nAap ${labels} mein se kaunsa option select karna chahenge?`;
         } else {
           content += `\n\n${cartSummary(newCart)}${cartTrail}`;
+          // Suggest pizza toppings whenever a pizza item was just added
+          const addedPizza = toAdd.find((a) => getItemCategory(a.item.name) === "pizza");
+          if (addedPizza) content += pizzaToppingSuggestion(addedPizza.item.name);
         }
 
         const pendingFromAmbigsA = ambigErrs.map((e) => ({
@@ -1431,6 +1599,17 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
               content: categoryOptions(err.category),
               draftPatch: { pendingClarifications: pendingFromAmbigs, lastCategory: err.category },
             };
+          }
+          // Smart suggestion: if there's a close match inside the category, offer it via pendingAdd
+          if (err.category) {
+            const suggestion = findItemForCategory(err.term, err.category);
+            if (suggestion) {
+              const catLabel = err.category.charAt(0).toUpperCase() + err.category.slice(1);
+              return {
+                content: `*${label}* hamare menu mein exact name se listed nahi hai, lekin *${catLabel}* mein *${suggestion.name}* (PKR ${suggestion.price}) available hai.\n\nKya main 1 x *${suggestion.name}* add kar doon?`,
+                draftPatch: { pendingAdd: { name: suggestion.name, price: suggestion.price, qty: 1 }, lastCategory: err.category },
+              };
+            }
           }
           return {
             content: err.category
@@ -1557,7 +1736,7 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
   }
 
   // Full menu — only when no specific category keyword is present, or customer explicitly asks for full/all menu
-  const hasCategoryWord = /\b(burger|zinger|jumbo|pizza|pasta|rice|noodles|chowmein|sandwich|roll|steak|starter|macaroni|alfredo)\b/.test(t);
+  const hasCategoryWord = /\b(burger|zinger|jumbo|pizza|pasta|rice|noodles|chowmein|sandwich|roll|steak|starter|starters|strips|hot shot|fries|macaroni|alfredo)\b/.test(t);
   if (
     /\b(full menu|complete menu|poora menu|all items|sabhi items)\b/.test(t) ||
     /\b(what (do you have|you have|is available)|kya hai|kya milta)\b/.test(t) ||
@@ -1576,18 +1755,19 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
     };
   }
 
+  // Pizza Fries — must come before pizza so "pizza fries" is not caught by the pizza handler
+  if (/\b(pizza fries)\b/.test(t) || (/\bfries\b/.test(t) && !/\b(strips|hot shot)\b/.test(t))) {
+    return {
+      content: `🍟 *Pizza Fries:*\n\n${fmt("pizzaFries")}\n\nAap small box lena chahenge ya large box?`,
+      draftPatch: { lastCategory: "fries" },
+    };
+  }
+
   // Pizza
   if (/\b(pizza)\b/.test(t)) {
     return {
       content: `🍕 *Pizza Menu*\n\n${fmt("pizza")}\n\n_Try our *Think Food Special Pizza* — the house favourite at PKR 1,500!_`,
       draftPatch: { lastCategory: "pizza" },
-    };
-  }
-
-  // Pizza Fries & Toppings (explicit request)
-  if (/\b(pizza fries|topping|cheese topping|extra chicken)\b/.test(t)) {
-    return {
-      content: `🍟 *Pizza Fries & Toppings*\n\n${fmt("pizzaFries")}\n\n${fmt("toppings")}`,
     };
   }
 
@@ -1629,17 +1809,17 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
     return { content: `🌯 *Roll*\n\n${fmt("rolls")}`, draftPatch: { lastCategory: "roll" } };
   }
 
-  // Starter / pizza fries
-  if (/\b(starter|strips|hot shot|pizza fries)\b/.test(t)) {
+  // Starters
+  if (/\b(starters?|strips|hot shot)\b/.test(t)) {
     return {
-      content: `🍗 *Starters & Pizza Fries*\n\n${fmt("starters")}\n\n${fmt("pizzaFries")}`,
+      content: `🍗 *Starters:*\n\n${fmt("starters")}`,
       draftPatch: { lastCategory: "starter" },
     };
   }
 
-  // Steak
+  // Steak (normalization converts "steaks" → "steak" before this check)
   if (/\b(steak)\b/.test(t)) {
-    return { content: `🥩 *Steaks*\n\n${fmt("steaks")}`, draftPatch: { lastCategory: "steak" } };
+    return { content: `🥩 *Steaks:*\n\n${fmt("steaks")}`, draftPatch: { lastCategory: "steak" } };
   }
 
   // Recommendation
