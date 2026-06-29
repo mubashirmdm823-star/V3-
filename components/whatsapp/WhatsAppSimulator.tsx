@@ -758,7 +758,7 @@ const NEGATIVE_REPLY =
   /\b(nahi|nahin|no|nope|abhi nahi|not now|baad mein|later|rehne do|rehne|zaroorat nahi|chahiye nahi|mat|theek hai baad mein|ruko|ruk jao|wait|sochta hun|sochti hun|filhal nahi|abhi sirf)\b/;
 
 const CART_CLEAR =
-  /(cancel order|cart clear|sab hata do|cart empty|sabhi items hata|order hatao|clear cart|order clear|poora order cancel|puri order cancel)/;
+  /(cancel order|cart clear|sab hata do|cart empty|sabhi items hata|order hatao|clear cart|order clear|poora order cancel|puri order cancel|sab remove|sab delete|sab nikal|remove all|delete all|empty cart|poori cart|puri cart|poora order hata|poora order remove|sab cancel)/;
 
 // Replacement connector phrases — split point between remove-target (left) and add-target (right)
 const CROSS_REPLACE_TRIGGER =
@@ -1271,8 +1271,50 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
       // handler fires next (all item-add returns already include pendingAdd: undefined below)
     }
 
-    // Cancel / clear entire cart
+    // Cancel / clear entire cart (may be combined with an add request)
     if (CART_CLEAR.test(t)) {
+      // Check whether the same message also contains items to add after clearing
+      const _ccSegs = t.split(/[,،]|\baur\b|\band\b|\bor\b|\bplus\b|\bsaath\b|\bsath\b/i)
+        .map((s) => s.trim()).filter(Boolean);
+      const _ccAddSegs = _ccSegs.filter((s) =>
+        !CART_CLEAR.test(s) &&
+        (ORDER_INTENT.test(s) || /\d+/.test(s) ||
+          Object.keys(URDU_NUMS).some((w) => new RegExp(`\\b${w}\\b`).test(s)))
+      );
+
+      const _ccToAdd: Array<{ item: { name: string; price: number }; qty: number }> = [];
+      for (const seg of _ccAddSegs) {
+        const r = strictMatchSegment(seg);
+        if (r.ok) _ccToAdd.push({ item: r.item, qty: r.qty });
+      }
+
+      if (_ccToAdd.length > 0) {
+        // Clear then add — build actions array: clear first, then every add
+        const _ccActions: CartAction[] = [{ op: "clear" }];
+        const _ccLines: string[] = [];
+        let _ccLast: string | undefined;
+        const _ccNewCart: CartItem[] = [];
+
+        for (const { item, qty } of _ccToAdd) {
+          _ccNewCart.push({ name: item.name, price: item.price, qty });
+          _ccLines.push(`${qty} x ${item.name}`);
+          _ccActions.push({ op: "add", item: { name: item.name, price: item.price, qty } });
+          _ccLast = item.name;
+        }
+
+        return {
+          content: `Cart clear kar diya gaya. ✅\n\n*Added:*\n${_ccLines.join("\n")}\n\n${cartSummary(_ccNewCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartActions: _ccActions,
+          draftPatch: {
+            lastItem: _ccLast,
+            pendingClarifications: [],
+            lastCategory: (_ccLast ? getItemCategory(_ccLast) : null) ?? draft.lastCategory,
+          },
+        };
+      }
+
+      // Pure cart clear — no add items found
       return {
         content: `Aapka current order clear kar diya gaya hai.\n\nAap jab chahein nayi order shuru kar sakte hain. Menu dekhne ke liye item ka naam type karein.`,
         nextPhase: "browsing",
