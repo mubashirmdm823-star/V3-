@@ -409,6 +409,21 @@ function findCartItemForRemoval(cart: CartItem[], text: string): CartItem | null
   return findInCart(cart, text);
 }
 
+// Returns a capitalised label string when the message contains a named food target
+// (a word that appears in menu data, categories, or single-keyword defaults).
+// Returns null when the message is "vague" (no identifiable item/category named).
+// Used to gate whether cart-mutation fallbacks (lastItem, single-item-cart) are allowed.
+function namedTargetLabel(text: string): string | null {
+  const kws = getFoodKeywords(text);
+  const foodKws = kws.filter(
+    (w) => ALL_MENU_WORDS.has(w) || CATEGORY_ONLY.has(w) || w in SINGLE_DEFAULTS
+  );
+  if (foodKws.length === 0) return null;
+  return foodKws
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 // Returns true when a remove message carries a quantity (reduce by N, not remove all)
 function hasReduceQty(text: string): boolean {
   const t = text.toLowerCase();
@@ -744,6 +759,10 @@ const NEGATIVE_REPLY =
 
 const CART_CLEAR =
   /(cancel order|cart clear|sab hata do|cart empty|sabhi items hata|order hatao|clear cart|order clear|poora order cancel|puri order cancel)/;
+
+// Replacement connector phrases — split point between remove-target (left) and add-target (right)
+const CROSS_REPLACE_TRIGGER =
+  /\b(hata\s+kar|hata\s+ke|remove\s+karke|remove\s+kar\s+ke|nikal\s+kar|nikal\s+ke|badal\s+kar|convert\s+kar|replace\s+karke|ki\s+jagah|iski\s+jagah)\b/i;
 
 // Extracts only the person's name from natural-language name phrases.
 // "Mera naam Fahad hai" → "Fahad", "I am Ali" → "Ali", "Main Bilal hun" → "Bilal"
@@ -1364,15 +1383,77 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
       }
     }
 
+    // ── Cross-category replacement: "X hata kar Y", "X ki jagah Y de do" ──────
+    // Guards against variant-swap messages (those go to isVariantSwapMessage below)
+    if (CROSS_REPLACE_TRIGGER.test(t) && !isVariantSwapMessage(t)) {
+      const _crM = t.match(CROSS_REPLACE_TRIGGER)!;
+      const _crRemovePart = t.slice(0, _crM.index!).trim();
+      const _crAddPart    = t.slice(_crM.index! + _crM[0].length).trim();
+
+      // Only proceed when the remove-side has a recognisable food target
+      if (_crRemovePart && _crAddPart && namedTargetLabel(_crRemovePart) !== null) {
+        const _crRemoveItem  = findCartItemForRemoval(draft.cart, _crRemovePart);
+        const _crAddMenuItem = findMenuItem(_crAddPart, 1);
+        const _crRemoveLabel = namedTargetLabel(_crRemovePart) ?? _crRemovePart;
+
+        if (!_crRemoveItem) {
+          return {
+            content: `Maaf kijiye, aapki current cart mein *${_crRemoveLabel}* maujood nahi hai. Replacement karne ke liye pehle woh item cart mein hona chahiye.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+          };
+        }
+
+        if (!_crAddMenuItem) {
+          const _crAddLabel = getFoodKeywords(_crAddPart)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ") || _crAddPart;
+          return {
+            content: `Maaf kijiye, *${_crAddLabel}* hamare menu mein available nahi hai. Is liye replacement complete nahi ho sakti.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+          };
+        }
+
+        // Both valid — execute the replacement
+        const _crQty = parseQty(_crAddPart) || 1;
+        const _crNewCart = draft.cart
+          .filter((i) => i.name !== _crRemoveItem.name)
+          .concat([{ name: _crAddMenuItem.name, price: _crAddMenuItem.price, qty: _crQty }]);
+        return {
+          content: `*${_crRemoveItem.name}* hataya aur *${_crAddMenuItem.name}* (PKR ${_crAddMenuItem.price}) add kar diya. ✅\n\n${cartSummary(_crNewCart)}${cartTrail}`,
+          nextPhase: "item_selected",
+          cartActions: [
+            { op: "remove", name: _crRemoveItem.name },
+            { op: "add", item: { name: _crAddMenuItem.name, price: _crAddMenuItem.price, qty: _crQty } },
+          ],
+          draftPatch: {
+            lastItem: _crAddMenuItem.name,
+            pendingClarifications: [],
+            lastCategory: getItemCategory(_crAddMenuItem.name) ?? draft.lastCategory,
+          },
+        };
+      }
+    }
+
     // Remove intent — "ek hata do" reduces by 1, "pasta hata do" removes entirely
     if (REMOVE_INTENT.test(t)) {
       const byQty = hasReduceQty(t);
       const reduceAmt = byQty ? parseQty(t) : 0;
 
-      const target =
-        findCartItemForRemoval(draft.cart, t) ??
-        (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
-        (draft.cart.length === 1 ? draft.cart[0] : null);
+      const _remLabel = namedTargetLabel(t);
+      let target: CartItem | null;
+      if (_remLabel !== null) {
+        // Customer named a specific item/category — only act if it is actually in the cart
+        target = findCartItemForRemoval(draft.cart, t);
+        if (!target) {
+          return {
+            content: `Maaf kijiye, aapki current cart mein *${_remLabel}* maujood nahi hai, is liye remove nahi kiya ja sakta.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+          };
+        }
+      } else {
+        // Vague phrase ("isko hata do", "ye hata do", "ek hata do") — allow context fallbacks
+        target =
+          findCartItemForRemoval(draft.cart, t) ??
+          (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
+          (draft.cart.length === 1 ? draft.cart[0] : null);
+      }
 
       if (!target) {
         const names = draft.cart.map((i) => i.name).join(", ");
@@ -1413,7 +1494,32 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
 
     // Variant/size correction — "small nahi large", "jumbo kar do", "large kar do", "red sauce"
     if (isVariantSwapMessage(t)) {
-      const swap = findVariantSwap(t, draft.lastItem, draft.cart);
+      // Determine the swap source: prefer the cart item the customer explicitly named
+      const _vsKws = getFoodKeywords(t);
+      const _vsCatWord = _vsKws.find((w) => CATEGORY_ONLY.has(w));
+      const _vsSingle  = _vsKws.find((w) => w in SINGLE_DEFAULTS);
+      let _vsSource = draft.lastItem;
+
+      if (_vsCatWord) {
+        const _vsCatKey = getCategoryKey(_vsCatWord);
+        const _vsCatItem = _vsCatKey
+          ? draft.cart.find((i) => MENU[_vsCatKey].items.some((m) => m.name === i.name))
+          : null;
+        if (_vsCatItem) {
+          _vsSource = _vsCatItem.name;
+        } else {
+          // Customer named a category that's not in the cart — reject the action
+          const _vsLabel = _vsCatWord.charAt(0).toUpperCase() + _vsCatWord.slice(1);
+          return {
+            content: `Maaf kijiye, aapki current cart mein *${_vsLabel}* maujood nahi hai, is liye update nahi kiya ja sakta.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+          };
+        }
+      } else if (_vsSingle) {
+        const _vsExact = draft.cart.find((i) => i.name === SINGLE_DEFAULTS[_vsSingle]);
+        if (_vsExact) _vsSource = _vsExact.name;
+      }
+
+      const swap = findVariantSwap(t, _vsSource, draft.cart);
       if (swap) {
         const newCart = draft.cart
           .filter((i) => i.name !== swap.fromName)
@@ -1476,10 +1582,23 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
     // Quantity update — "3 kar do", "Quantity 5 kar do", "2 ki jagah 4"
     // Skipped when add-intent is present (e.g. "add kar do"), except "ki jagah" always wins
     if (UPDATE_QTY_INTENT.test(t) && (!ORDER_INTENT.test(t) || /ki jagah/.test(t))) {
-      const target =
-        findInCart(draft.cart, t) ??
-        (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
-        (draft.cart.length === 1 ? draft.cart[0] : null);
+      const _uqLabel = namedTargetLabel(t);
+      let target: CartItem | null;
+      if (_uqLabel !== null) {
+        // Customer named a specific item/category — only act if it is in the cart
+        target = findCartItemForRemoval(draft.cart, t);
+        if (!target) {
+          return {
+            content: `Maaf kijiye, aapki current cart mein *${_uqLabel}* maujood nahi hai, is liye update nahi kiya ja sakta.\n\n${cartSummary(draft.cart)}${cartTrail}`,
+          };
+        }
+      } else {
+        // Vague — allow context fallbacks
+        target =
+          findInCart(draft.cart, t) ??
+          (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
+          (draft.cart.length === 1 ? draft.cart[0] : null);
+      }
 
       if (target) {
         let newQty: number;
