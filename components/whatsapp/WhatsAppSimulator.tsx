@@ -1759,6 +1759,7 @@ export function WhatsAppSimulator() {
   const initialized = useRef(false);
   const phaseRef = useRef<Phase>("browsing");
   const draftRef = useRef<Draft>({ cart: [] });
+  const isSendingRef = useRef(false);
 
   function applyPhase(p: Phase) {
     phaseRef.current = p;
@@ -1851,9 +1852,11 @@ export function WhatsAppSimulator() {
 
   function handleSend() {
     const text = input.trim();
-    if (!text) return;
+    if (!text || isSendingRef.current) return;
+    isSendingRef.current = true;
     setInput("");
     respond(text);
+    setTimeout(() => { isSendingRef.current = false; }, 400);
   }
 
   function handleKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -1921,7 +1924,10 @@ export function WhatsAppSimulator() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-0.5"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         {messages.map((msg, idx) => {
           const isFirst = idx === 0 || messages[idx - 1].role !== msg.role;
           return (
@@ -1974,7 +1980,13 @@ export function WhatsAppSimulator() {
       </div>
 
       {/* Input bar */}
-      <div className="shrink-0 bg-[#202c33] border-t border-[#2a3942] px-3 py-2 flex items-center gap-2">
+      <div
+        className="shrink-0 bg-[#202c33] border-t border-[#2a3942] px-3 flex items-center gap-2"
+        style={{
+          paddingTop: "8px",
+          paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+        }}
+      >
         {phase === "done" ? (
           <p className="flex-1 text-center text-[#8696a0] text-xs py-1">
             Order submitted — tap <RefreshCw size={11} className="inline" /> to start a new chat
@@ -1988,12 +2000,13 @@ export function WhatsAppSimulator() {
               onKeyDown={handleKey}
               placeholder="Type a message"
               disabled={isTyping}
-              className="flex-1 bg-[#2a3942] text-[#e9edef] placeholder-[#8696a0] text-sm px-4 py-2 rounded-full outline-none border border-transparent focus:border-[#25d366]/30 transition-colors disabled:opacity-50"
+              className="flex-1 bg-[#2a3942] text-[#e9edef] placeholder-[#8696a0] px-4 py-2 rounded-full outline-none border border-transparent focus:border-[#25d366]/30 transition-colors disabled:opacity-50"
+              style={{ fontSize: "16px" }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isTyping}
-              className="w-9 h-9 rounded-full bg-[#25d366] flex items-center justify-center shrink-0 text-[#111b21] disabled:opacity-40 hover:bg-[#22c55e] active:bg-[#16a34a] transition-colors"
+              className="w-9 h-9 rounded-full bg-[#25d366] flex items-center justify-center shrink-0 text-[#111b21] disabled:opacity-40 hover:bg-[#22c55e] active:bg-[#16a34a] transition-colors touch-manipulation"
             >
               <Send size={15} />
             </button>

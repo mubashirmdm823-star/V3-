@@ -2,7 +2,13 @@ import { WhatsAppSimulator } from "@/components/whatsapp/WhatsAppSimulator";
 
 export default function Home() {
   return (
-    <div className="flex flex-col bg-zinc-950 text-white" style={{ height: "100dvh" }}>
+    <div
+      className="flex flex-col bg-zinc-950 text-white overflow-hidden"
+      style={{
+        height: "100dvh",
+        paddingTop: "env(safe-area-inset-top)",
+      }}
+    >
       <header className="shrink-0 bg-[#111827] border-b border-zinc-800/60 px-5 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-[#25d366] flex items-center justify-center shrink-0">
