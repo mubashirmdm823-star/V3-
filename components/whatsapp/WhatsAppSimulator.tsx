@@ -381,6 +381,34 @@ function findInCart(cart: CartItem[], text: string): CartItem | null {
   return null;
 }
 
+// Category-aware cart item finder for remove operations.
+// Prefers category-locked search so "fries hata do" finds Pizza Fries, not Hot Shot (which contains "fries").
+function findCartItemForRemoval(cart: CartItem[], text: string): CartItem | null {
+  const tWords = text.toLowerCase().split(/\s+/).map((w) => w.replace(/[^a-z]/g, "")).filter((w) => w.length > 2);
+
+  // Category-ONLY word → search items from that category first
+  const catWord = tWords.find((w) => CATEGORY_ONLY.has(w));
+  if (catWord) {
+    const catKey = getCategoryKey(catWord);
+    if (catKey) {
+      const catItemNames = new Set(MENU[catKey].items.map((i) => i.name));
+      const found = cart.find((i) => catItemNames.has(i.name));
+      if (found) return found;
+    }
+  }
+
+  // Unambiguous single-keyword defaults
+  for (const [kw, name] of Object.entries(SINGLE_DEFAULTS)) {
+    if (new RegExp(`\\b${kw}\\b`).test(text.toLowerCase())) {
+      const found = cart.find((i) => i.name === name);
+      if (found) return found;
+    }
+  }
+
+  // Fallback: word-overlap with cart item names
+  return findInCart(cart, text);
+}
+
 // Returns true when a remove message carries a quantity (reduce by N, not remove all)
 function hasReduceQty(text: string): boolean {
   const t = text.toLowerCase();
@@ -856,6 +884,25 @@ function normalizeSpelling(text: string): string {
     // Plural → singular for consistent menu matching
     .replace(/\bhot shots\b/gi, "hot shot")
     .replace(/\bsteaks\b/gi,    "steak")
+    // Compound menu words run together without spaces — split into canonical form
+    .replace(/\bhotshots?\b/gi,           "hot shot")
+    .replace(/\bpizzafries\b/gi,          "pizza fries")
+    .replace(/\bzingerburger\b/gi,        "zinger burger")
+    .replace(/\bchickensandwich\b/gi,     "chicken sandwich")
+    .replace(/\balfredopasta\b/gi,        "alfredo pasta")
+    .replace(/\bchickensteak\b/gi,        "chicken steak")
+    .replace(/\bchickenchowmein\b/gi,     "chicken chowmein")
+    .replace(/\bvegetablechowmein\b/gi,   "vegetable chowmein")
+    .replace(/\bchickenfriedrice\b/gi,    "chicken fried rice")
+    .replace(/\bsingaporeanrice\b/gi,     "singaporean rice")
+    .replace(/\bchickenstrips\b/gi,       "chicken strips")
+    .replace(/\bsmokeburger\b/gi,         "smoke burger")
+    .replace(/\bjumboZinger\b/gi,         "jumbo zinger")
+    .replace(/\bmexicansandwich\b/gi,     "mexican sandwich")
+    .replace(/\bmexicanpizza\b/gi,        "mexican pizza")
+    .replace(/\bmexicanpasta\b/gi,        "mexican pasta")
+    .replace(/\bwhitesauce\b/gi,          "white sauce")
+    .replace(/\bredsauce\b/gi,            "red sauce")
     // Pause/wait shorthand
     .replace(/\brukja\b/gi,    "ruk jao")
     .replace(/\brukjao\b/gi,   "ruk jao");
@@ -1173,28 +1220,10 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
       };
     }
 
-    // ── Topping request — checked early so "extra cheese/chicken/olive" never mismatch ──
+    // ── Topping inquiry — add-ons are not orderable via chat ──────────────────
     if (TOPPING_INTENT.test(t)) {
-      const pizzaSize = getPizzaSizeFromCart(draft.cart);
-      const toppingItem = matchTopping(t, pizzaSize);
-      // Only auto-add topping if pizza already in cart; otherwise show topping info
-      const toppingOrderIntent = (ORDER_INTENT.test(t) || /\d+/.test(t)) && pizzaSize !== null;
-      if (toppingItem && toppingOrderIntent) {
-        const qty = parseQty(t);
-        const existing = draft.cart.find((ci) => ci.name === toppingItem.name);
-        const newCart = existing
-          ? draft.cart.map((ci) => ci.name === toppingItem.name ? { ...ci, qty: ci.qty + qty } : ci)
-          : [...draft.cart, { name: toppingItem.name, price: toppingItem.price, qty }];
-        return {
-          content: `*${toppingItem.name}* (PKR ${toppingItem.price}) added! ✅\n\n${cartSummary(newCart)}${cartTrail}`,
-          nextPhase: "item_selected",
-          cartAction: { op: "add", item: { name: toppingItem.name, price: toppingItem.price, qty } },
-          draftPatch: { lastItem: toppingItem.name, pendingAdd: undefined },
-        };
-      }
-      // Topping inquiry or unresolved — show full topping menu
       return {
-        content: `🍕 *Extra Cheese & Chicken Topping:*\n\n${MENU.toppings.items.map((i) => `• ${i.name} — PKR ${i.price}`).join("\n")}\n\nKaunsa add karna chahein?`,
+        content: `Filhal pizza toppings / add-ons order flow mein available nahi hain. Aap menu mein listed pizza items order kar sakte hain.`,
       };
     }
 
@@ -1256,13 +1285,92 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
       }
     }
 
+    // ── Multi-action: message has both add and remove segments ──────────────────
+    // e.g. "ek small fries add kardo or burger hatado"
+    {
+      const _maHasAdd = ORDER_INTENT.test(t) || /\d+/.test(t) ||
+        Object.keys(URDU_NUMS).some((w) => new RegExp(`\\b${w}\\b`).test(t));
+      if (REMOVE_INTENT.test(t) && _maHasAdd) {
+        const _maSegs = t.split(/[,،]|\baur\b|\band\b|\bor\b|\bplus\b|\bsaath\b|\bsath\b/i)
+          .map((s) => s.trim()).filter(Boolean);
+        const _maRemSegs = _maSegs.filter((s) => REMOVE_INTENT.test(s));
+        const _maAddSegs = _maSegs.filter((s) =>
+          !REMOVE_INTENT.test(s) &&
+          (ORDER_INTENT.test(s) || /\d+/.test(s) ||
+            Object.keys(URDU_NUMS).some((w) => new RegExp(`\\b${w}\\b`).test(s)))
+        );
+
+        if (_maRemSegs.length > 0 && _maAddSegs.length > 0) {
+          const _maAdds: Array<{ item: { name: string; price: number }; qty: number }> = [];
+          const _maRems: CartItem[] = [];
+          const _maAddSeen = new Set<string>();
+          const _maRemSeen = new Set<string>();
+
+          for (const seg of _maAddSegs) {
+            const r = strictMatchSegment(seg);
+            if (r.ok && !_maAddSeen.has(r.item.name)) {
+              _maAddSeen.add(r.item.name);
+              _maAdds.push({ item: r.item, qty: r.qty });
+            }
+          }
+          for (const seg of _maRemSegs) {
+            const target = findCartItemForRemoval(draft.cart, seg) ??
+              (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
+              (draft.cart.length === 1 ? draft.cart[0] : null);
+            if (target && !_maRemSeen.has(target.name)) {
+              _maRemSeen.add(target.name);
+              _maRems.push(target);
+            }
+          }
+
+          if (_maAdds.length > 0 || _maRems.length > 0) {
+            let _maCrt = [...draft.cart];
+            const _maActions: CartAction[] = [];
+            const _maLines: string[] = [];
+            let _maLast: string | undefined;
+
+            for (const { item, qty } of _maAdds) {
+              const ex = _maCrt.find((i) => i.name === item.name);
+              if (ex) {
+                _maCrt = _maCrt.map((i) => i.name === item.name ? { ...i, qty: i.qty + qty } : i);
+              } else {
+                _maCrt = [..._maCrt, { name: item.name, price: item.price, qty }];
+              }
+              _maLines.push(`✅ Added: ${qty} x ${item.name}`);
+              _maActions.push({ op: "add", item: { name: item.name, price: item.price, qty } });
+              _maLast = item.name;
+            }
+            for (const rem of _maRems) {
+              _maCrt = _maCrt.filter((i) => i.name !== rem.name);
+              _maLines.push(`❌ Removed: ${rem.name}`);
+              _maActions.push({ op: "remove", name: rem.name });
+            }
+
+            const _maPhase = _maCrt.length > 0 ? "item_selected" : "browsing";
+            const _maCart = _maCrt.length > 0 ? cartSummary(_maCrt) : "Cart khali hai.";
+            const _maTrail = _maCrt.length > 0 ? cartTrail : "";
+            return {
+              content: `${_maLines.join("\n")}\n\n${_maCart}${_maTrail}`,
+              nextPhase: _maPhase,
+              cartActions: _maActions,
+              draftPatch: {
+                lastItem: _maLast ?? (_maCrt.length > 0 ? _maCrt[_maCrt.length - 1].name : undefined),
+                pendingClarifications: [],
+                lastCategory: (_maLast ? getItemCategory(_maLast) : null) ?? draft.lastCategory,
+              },
+            };
+          }
+        }
+      }
+    }
+
     // Remove intent — "ek hata do" reduces by 1, "pasta hata do" removes entirely
     if (REMOVE_INTENT.test(t)) {
       const byQty = hasReduceQty(t);
       const reduceAmt = byQty ? parseQty(t) : 0;
 
       const target =
-        findInCart(draft.cart, t) ??
+        findCartItemForRemoval(draft.cart, t) ??
         (draft.lastItem ? draft.cart.find((i) => i.name === draft.lastItem) : undefined) ??
         (draft.cart.length === 1 ? draft.cart[0] : null);
 
@@ -1534,9 +1642,6 @@ function ai(input: string, phase: Phase, draft: Draft): AIOut {
           content += `\n\nAap ${labels} mein se kaunsa option select karna chahenge?`;
         } else {
           content += `\n\n${cartSummary(newCart)}${cartTrail}`;
-          // Suggest pizza toppings whenever a pizza item was just added
-          const addedPizza = toAdd.find((a) => getItemCategory(a.item.name) === "pizza");
-          if (addedPizza) content += pizzaToppingSuggestion(addedPizza.item.name);
         }
 
         const pendingFromAmbigsA = ambigErrs.map((e) => ({
