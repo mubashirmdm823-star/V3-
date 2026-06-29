@@ -291,7 +291,8 @@ const URDU_NUMS: Record<string, number> = {
 };
 
 function parseQty(text: string): number {
-  const digit = text.match(/\b([1-9]\d*)\b/);
+  // Skip numbers that are part of size descriptions ("12 inch", "6 pcs", "8 pc")
+  const digit = text.match(/\b([1-9]\d*)\b(?!\s*(?:inch(?:es)?|pcs?|cm|mm|in\b))/);
   if (digit) return parseInt(digit[1]);
   // "do" in "kar do / de do / dila do / bana do / hata do" is a verb, not the number 2
   const doIsVerb = /\b(?:kar|de|dila|bana|hata|laga|bhej)\s+do\b/.test(text);
@@ -851,6 +852,13 @@ const UNAVAIL_MAP: Array<{ pattern: RegExp; label: string; alts: string }> = [
 
 function normalizeSpelling(text: string): string {
   return text
+    // ─── Strip menu copy-paste formatting (bullets, em-dashes, PKR prices) ─
+    .replace(/\b(?:pkr|rs\.?|rupees?)\s*\d[\d,]*\b/gi, "")
+    .replace(/[—–]\s*\d[\d,]*/g, " ")
+    .replace(/[—–]/g, " ")
+    .replace(/[•·→►▶]/g, " ")
+    .replace(/×/g, " ")
+    // ────────────────────────────────────────────────────────────────────────
     .replace(/\bzngr\b/gi,       "zinger")
     .replace(/\bznger\b/gi,      "zinger")
     .replace(/\bchowmin\b/gi,    "chowmein")
