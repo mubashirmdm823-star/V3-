@@ -1,0 +1,112 @@
+import type { TestCase } from "../types";
+
+// Red team — customer edits their order many times in a row (add, remove,
+// change qty, swap) before finally checking out. Each case threads a long
+// chain of edits through `setup`, then grades only the final cart state.
+export const repeatedEditsCases: TestCase[] = [
+  {
+    id: "re-001",
+    category: "Red team: repeated edits",
+    description: "ten consecutive edits before settling on a final order",
+    setup: [
+      "1 zinger burger",
+      "ek aur add kro",
+      "1 ek hata do",
+      "1 pizza small",
+      "large kar do",
+      "1 pasta small bhi de do",
+      "pasta hata do",
+      "1 hot shot bhi",
+      "2 zinger burger kar do",
+      "1 chicken steak bhi de do",
+    ],
+    message: "mera order dikhao",
+    intent: "cart reflects the net result of 10 edits",
+    expect: {
+      cartChanges: false,
+      cartAfter: [
+        { name: "Zinger Burger", qty: 2 },
+        { name: "Pizza Large 12 inch", qty: 1 },
+        { name: "Hot Shot 8 pcs with fries", qty: 1 },
+        { name: "Chicken Steak", qty: 1 },
+      ],
+      totalAfter: 500 * 2 + 1200 + 800 + 950,
+    },
+  },
+  {
+    id: "re-002",
+    category: "Red team: repeated edits",
+    description: "add then immediately remove the same item, five times in a row",
+    setup: [
+      "1 zinger burger",
+      "zinger hata do",
+      "1 zinger burger",
+      "zinger hata do",
+      "1 zinger burger",
+      "zinger hata do",
+      "1 zinger burger",
+      "zinger hata do",
+    ],
+    message: "1 zinger burger",
+    intent: "net result after add/remove churn — exactly 1 zinger burger",
+    expect: { cartChanges: true, cartAfter: [{ name: "Zinger Burger", qty: 1 }], totalAfter: 500 },
+  },
+  {
+    id: "re-003",
+    category: "Red team: repeated edits",
+    description: "quantity bumped up one at a time, six times",
+    setup: ["1 pasta small", "ek aur", "ek aur", "ek aur", "ek aur", "ek aur"],
+    message: "mera order dikhao",
+    intent: "qty incremented from 1 to 6 across six 'ek aur' messages",
+    expect: { cartChanges: false, cartAfter: [{ name: "Pasta Small", qty: 6 }], totalAfter: 3000 },
+  },
+  {
+    id: "re-004",
+    category: "Red team: repeated edits",
+    description: "swap the same item's variant three times in a row",
+    setup: [
+      "1 pizza small",
+      "large kar do",
+      "regular kar do",
+    ],
+    message: "large kar do",
+    intent: "final variant after three consecutive swaps is large",
+    expect: { cartChanges: true, cartAfter: [{ name: "Pizza Large 12 inch", qty: 1 }], totalAfter: 1200 },
+  },
+  {
+    id: "re-005",
+    category: "Red team: repeated edits",
+    description: "build a four-item cart one item per turn, then clear it all",
+    setup: [
+      "1 zinger burger",
+      "1 pizza small",
+      "1 pasta small",
+      "1 hot shot",
+    ],
+    message: "sab hata do",
+    intent: "clear cart after a long build-up",
+    expect: { cartChanges: true, cartAfter: [] },
+  },
+  {
+    id: "re-006",
+    category: "Red team: repeated edits",
+    description: "alternates between two different items across many turns",
+    setup: [
+      "1 zinger burger",
+      "1 pasta small",
+      "2 zinger burger kar do",
+      "3 pasta small kar do",
+      "1 zinger burger kar do",
+    ],
+    message: "mera order dikhao",
+    intent: "final quantities after alternating updates",
+    expect: {
+      cartChanges: false,
+      cartAfter: [
+        { name: "Zinger Burger", qty: 1 },
+        { name: "Pasta Small", qty: 3 },
+      ],
+      totalAfter: 500 + 1500,
+    },
+  },
+];

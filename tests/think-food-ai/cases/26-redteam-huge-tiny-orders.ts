@@ -1,0 +1,132 @@
+import type { TestCase } from "../types";
+
+// Red team — extreme order sizes: huge multi-item orders and trivially tiny ones.
+export const hugeTinyOrderCases: TestCase[] = [
+  {
+    id: "ht-001",
+    category: "Red team: huge / tiny orders",
+    description: "huge order — eight different items in one message",
+    message:
+      "ek zinger burger, ek smoke burger, ek club sandwich, ek pizza large, ek pasta small, ek chicken chowmein, ek singaporean rice aur ek chicken steak",
+    intent: "add 8 different items",
+    expect: {
+      cartChanges: true,
+      cartAfter: [
+        { name: "Zinger Burger", qty: 1 },
+        { name: "Smoke Burger", qty: 1 },
+        { name: "Club Sandwich", qty: 1 },
+        { name: "Pizza Large 12 inch", qty: 1 },
+        { name: "Pasta Small", qty: 1 },
+        { name: "Chicken Chowmein", qty: 1 },
+        { name: "Singaporean Rice", qty: 1 },
+        { name: "Chicken Steak", qty: 1 },
+      ],
+      totalAfter: 500 + 550 + 500 + 1200 + 500 + 650 + 700 + 950,
+    },
+  },
+  {
+    id: "ht-002",
+    category: "Red team: huge / tiny orders",
+    description: "huge quantity of a single item",
+    message: "20 zinger burger",
+    intent: "add 20x zinger burger",
+    expect: { cartChanges: true, cartAfter: [{ name: "Zinger Burger", qty: 20 }], totalAfter: 10000 },
+  },
+  {
+    id: "ht-003",
+    category: "Red team: huge / tiny orders",
+    description: "office party order — large quantities of two items",
+    message: "10 hot shot aur 10 pizza large chahiye",
+    intent: "add 10x hot shot + 10x pizza large",
+    expect: {
+      cartChanges: true,
+      cartAfter: [
+        { name: "Hot Shot 8 pcs with fries", qty: 10 },
+        { name: "Pizza Large 12 inch", qty: 10 },
+      ],
+      totalAfter: 800 * 10 + 1200 * 10,
+    },
+  },
+  {
+    id: "ht-004",
+    category: "Red team: huge / tiny orders",
+    description: "tiniest possible order — single cheapest item",
+    message: "1 vegetable rice",
+    intent: "add 1 vegetable rice",
+    expect: { cartChanges: true, cartAfter: [{ name: "Vegetable Rice", qty: 1 }], totalAfter: 400 },
+  },
+  {
+    id: "ht-005",
+    category: "Red team: huge / tiny orders",
+    description: "zero quantity requested should floor to 1, not vanish",
+    message: "0 zinger burger chahiye",
+    intent: "qty 0 is nonsensical, floors to a sane minimum of 1",
+    expect: { cartChanges: true, cartAfter: [{ name: "Zinger Burger", qty: 1 }], totalAfter: 500 },
+  },
+  {
+    id: "ht-006",
+    category: "Red team: huge / tiny orders",
+    description: "negative-sign quantity — sign is ignored, digits still parsed (no crash, no negative cart qty)",
+    message: "-5 zinger burger chahiye",
+    intent: "treated as qty 5 (minus sign isn't part of the digit token)",
+    expect: { cartChanges: true, cartAfter: [{ name: "Zinger Burger", qty: 5 }], totalAfter: 2500 },
+  },
+  {
+    id: "ht-007",
+    category: "Red team: huge / tiny orders",
+    description: "absurdly large quantity doesn't crash the engine",
+    message: "999 zinger burger",
+    intent: "add 999x zinger burger, no crash",
+    expect: { cartChanges: true, cartAfter: [{ name: "Zinger Burger", qty: 999 }], totalAfter: 999 * 500 },
+  },
+  {
+    id: "ht-008",
+    category: "Red team: huge / tiny orders",
+    description: "huge order via repeated additions across many turns",
+    setup: [
+      "1 zinger burger",
+      "1 smoke burger",
+      "1 jumbo zinger",
+      "1 spicy stuff burger",
+      "1 club sandwich",
+    ],
+    message: "1 bbq sandwich",
+    intent: "six different items accumulated one at a time",
+    expect: {
+      cartChanges: true,
+      cartAfter: [
+        { name: "Zinger Burger", qty: 1 },
+        { name: "Smoke Burger", qty: 1 },
+        { name: "Jumbo Zinger", qty: 1 },
+        { name: "Spicy Stuff Burger", qty: 1 },
+        { name: "Club Sandwich", qty: 1 },
+        { name: "BBQ Sandwich", qty: 1 },
+      ],
+      totalAfter: 500 + 550 + 750 + 700 + 500 + 550,
+    },
+  },
+  {
+    id: "ht-009",
+    category: "Red team: huge / tiny orders",
+    description: "tiny single-word order, no verb at all",
+    message: "gyro",
+    intent: "add gyro (unambiguous single word)",
+    expect: { cartChanges: true, cartAfter: [{ name: "Gyro", qty: 1 }], totalAfter: 550 },
+  },
+  {
+    id: "ht-010",
+    category: "Red team: huge / tiny orders",
+    description: "huge order with one duplicate mention merges to first occurrence only",
+    message: "ek zinger burger, ek pizza large, ek zinger burger, ek pasta small",
+    intent: "duplicate zinger mention does not double the quantity",
+    expect: {
+      cartChanges: true,
+      cartAfter: [
+        { name: "Zinger Burger", qty: 1 },
+        { name: "Pizza Large 12 inch", qty: 1 },
+        { name: "Pasta Small", qty: 1 },
+      ],
+      totalAfter: 500 + 1200 + 500,
+    },
+  },
+];
