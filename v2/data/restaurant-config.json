@@ -1,0 +1,13 @@
+{
+  "name": "Think Food",
+  "currency": "PKR",
+  "address": "Nazimabad No. 5, Paposh Nagar (Near Sarafa Bazar)",
+  "mapsUrl": "https://www.google.com/maps/place/Think+Foods+for/@24.9218431,67.0224398,17z/data=!4m6!3m5!1s0x3eb33f93f39564c7:0x8e0b673bb483c53e!8m2!3d24.9219961!4d67.0223894!16s%2Fg%2F11mg4bfmtm?entry=ttu&g_ep=EgoyMDI2MDYyMy4wIKXMDSoASAFQAw%3D%3D",
+  "timing": "6 PM to 3 AM",
+  "phone": "0312-2175855",
+  "deliveryFee": 150,
+  "deliveryTime": "35 to 45 minutes",
+  "orderFlow": {
+    "requiresManualVerification": true
+  }
+}

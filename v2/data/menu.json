@@ -1,0 +1,300 @@
+{
+  "categories": [
+    {
+      "key": "burgers",
+      "title": "Burgers",
+      "items": [
+        {
+          "id": "zinger-burger",
+          "name": "Zinger Burger",
+          "price": 500
+        },
+        {
+          "id": "zinger-burger-w-c",
+          "name": "Zinger Burger W/C",
+          "price": 550
+        },
+        {
+          "id": "jumbo-zinger",
+          "name": "Jumbo Zinger",
+          "price": 750
+        },
+        {
+          "id": "think-food-sp-burger",
+          "name": "Think Food SP Burger",
+          "price": 550
+        },
+        {
+          "id": "smoke-burger",
+          "name": "Smoke Burger",
+          "price": 550
+        },
+        {
+          "id": "spicy-stuff-burger",
+          "name": "Spicy Stuff Burger",
+          "price": 700
+        }
+      ]
+    },
+    {
+      "key": "sandwiches",
+      "title": "Sandwiches",
+      "items": [
+        {
+          "id": "chicken-sandwich",
+          "name": "Chicken Sandwich",
+          "price": 550
+        },
+        {
+          "id": "club-sandwich",
+          "name": "Club Sandwich",
+          "price": 500
+        },
+        {
+          "id": "bbq-sandwich",
+          "name": "BBQ Sandwich",
+          "price": 550
+        },
+        {
+          "id": "smoke-sandwich",
+          "name": "Smoke Sandwich",
+          "price": 550
+        },
+        {
+          "id": "vegi-sandwich",
+          "name": "Vegi Sandwich",
+          "price": 500
+        },
+        {
+          "id": "mexican-sandwich",
+          "name": "Mexican Sandwich",
+          "price": 600
+        },
+        {
+          "id": "crispy-sandwich",
+          "name": "Crispy Sandwich",
+          "price": 600
+        },
+        {
+          "id": "think-food-special-sandwich",
+          "name": "Think Food Special Sandwich",
+          "price": 550
+        },
+        {
+          "id": "grill-sandwich",
+          "name": "Grill Sandwich",
+          "price": 650
+        }
+      ]
+    },
+    {
+      "key": "pizza",
+      "title": "Pizza",
+      "items": [
+        {
+          "id": "pizza-large-12-inch",
+          "name": "Pizza Large 12 inch",
+          "price": 1200
+        },
+        {
+          "id": "pizza-regular-9-inch",
+          "name": "Pizza Regular 9 inch",
+          "price": 850
+        },
+        {
+          "id": "pizza-small-6-inch",
+          "name": "Pizza Small 6 inch",
+          "price": 550
+        },
+        {
+          "id": "think-food-special-pizza",
+          "name": "Think Food Special Pizza",
+          "price": 1500
+        },
+        {
+          "id": "mexican-pizza",
+          "name": "Mexican Pizza",
+          "price": 1600
+        }
+      ]
+    },
+    {
+      "key": "pizzaFries",
+      "title": "Pizza Fries",
+      "items": [
+        {
+          "id": "pizza-fries-small-box",
+          "name": "Pizza Fries Small Box",
+          "price": 500
+        },
+        {
+          "id": "pizza-fries-large-box",
+          "name": "Pizza Fries Large Box",
+          "price": 600
+        }
+      ]
+    },
+    {
+      "key": "rolls",
+      "title": "Roll",
+      "items": [
+        {
+          "id": "wrap",
+          "name": "Wrap",
+          "price": 550
+        },
+        {
+          "id": "gyro",
+          "name": "Gyro",
+          "price": 550
+        }
+      ]
+    },
+    {
+      "key": "pasta",
+      "title": "Pasta",
+      "items": [
+        {
+          "id": "pasta-small",
+          "name": "Pasta Small",
+          "price": 500
+        },
+        {
+          "id": "pasta-large",
+          "name": "Pasta Large",
+          "price": 600
+        },
+        {
+          "id": "alfredo-pasta-white-sauce",
+          "name": "Alfredo Pasta white sauce",
+          "price": 850
+        },
+        {
+          "id": "macaroni-pasta-red-sauce",
+          "name": "Macaroni Pasta red sauce",
+          "price": 750
+        },
+        {
+          "id": "mexican-pasta-white-sauce",
+          "name": "Mexican Pasta white sauce",
+          "price": 850
+        }
+      ]
+    },
+    {
+      "key": "noodles",
+      "title": "Noodles",
+      "items": [
+        {
+          "id": "chicken-chowmein",
+          "name": "Chicken Chowmein",
+          "price": 650
+        },
+        {
+          "id": "vegetable-chowmein",
+          "name": "Vegetable Chowmein",
+          "price": 600
+        }
+      ]
+    },
+    {
+      "key": "rice",
+      "title": "Rice",
+      "items": [
+        {
+          "id": "chicken-fried-rice",
+          "name": "Chicken Fried Rice",
+          "price": 450
+        },
+        {
+          "id": "vegetable-rice",
+          "name": "Vegetable Rice",
+          "price": 400
+        },
+        {
+          "id": "egg-rice",
+          "name": "Egg Rice",
+          "price": 450
+        },
+        {
+          "id": "singaporean-rice",
+          "name": "Singaporean Rice",
+          "price": 700
+        },
+        {
+          "id": "white-singaporean",
+          "name": "White Singaporean",
+          "price": 750
+        }
+      ]
+    },
+    {
+      "key": "starters",
+      "title": "Starter",
+      "items": [
+        {
+          "id": "chicken-strips-6-pcs-with-fries",
+          "name": "Chicken Strips 6 pcs with fries",
+          "price": 750
+        },
+        {
+          "id": "hot-shot-8-pcs-with-fries",
+          "name": "Hot Shot 8 pcs with fries",
+          "price": 800
+        }
+      ]
+    },
+    {
+      "key": "steaks",
+      "title": "Steaks",
+      "items": [
+        {
+          "id": "chicken-steak",
+          "name": "Chicken Steak",
+          "price": 950
+        }
+      ]
+    },
+    {
+      "key": "toppings",
+      "title": "Extra Cheese & Chicken Topping",
+      "items": [
+        {
+          "id": "pizza-large-cheese-topping",
+          "name": "Pizza Large Cheese Topping",
+          "price": 250
+        },
+        {
+          "id": "pizza-medium-cheese-topping",
+          "name": "Pizza Medium Cheese Topping",
+          "price": 200
+        },
+        {
+          "id": "pizza-small-cheese-topping",
+          "name": "Pizza Small Cheese Topping",
+          "price": 150
+        },
+        {
+          "id": "extra-chicken-large",
+          "name": "Extra Chicken Large",
+          "price": 200
+        },
+        {
+          "id": "extra-chicken-medium",
+          "name": "Extra Chicken Medium",
+          "price": 200
+        },
+        {
+          "id": "extra-chicken-small",
+          "name": "Extra Chicken Small",
+          "price": 150
+        },
+        {
+          "id": "olive-mushroom-jalapeno",
+          "name": "Olive Mushroom Jalapeno",
+          "price": 150
+        }
+      ]
+    }
+  ]
+}
