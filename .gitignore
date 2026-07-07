@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# QA simulator generated output (regenerate via npm run qa:simulate)
+/qa/output/

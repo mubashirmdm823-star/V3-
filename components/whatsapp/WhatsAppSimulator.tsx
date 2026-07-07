@@ -3,13 +3,7 @@
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Phone, RefreshCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  ai,
-  applyCartAction as applyCartActionPure,
-  type Phase,
-  type Draft,
-  type CartAction,
-} from "@/lib/think-food-ai";
+import { processMessage } from "@/lib/engine/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,27 +44,18 @@ export function WhatsAppSimulator() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [input, setInput] = useState("");
-  const [phase, setPhase] = useState<Phase>("browsing");
+  const [isFinished, setIsFinished] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
-  const phaseRef = useRef<Phase>("browsing");
-  const draftRef = useRef<Draft>({ cart: [] });
+  // Opaque — whichever engine is active (config/ai-engine.ts's AI_ENGINE)
+  // owns this shape entirely; the simulator only ever threads it through.
+  const contextRef = useRef<unknown>(undefined);
+  const isFinishedRef = useRef(false);
   const isSendingRef = useRef(false);
 
-  function applyPhase(p: Phase) {
-    phaseRef.current = p;
-    setPhase(p);
-  }
-
-  function applyDraftPatch(patch: Partial<Omit<Draft, "cart">>) {
-    draftRef.current = { ...draftRef.current, ...patch };
-  }
-
-  function applyCartAction(action: CartAction) {
-    draftRef.current = {
-      ...draftRef.current,
-      cart: applyCartActionPure(draftRef.current.cart, action),
-    };
+  function applyFinished(finished: boolean) {
+    isFinishedRef.current = finished;
+    setIsFinished(finished);
   }
 
   function addAI(content: string) {
@@ -82,31 +67,21 @@ export function WhatsAppSimulator() {
   }
 
   function respond(text: string) {
-    if (isTyping || phaseRef.current === "done") return;
+    if (isTyping || isFinishedRef.current) return;
     addCustomer(text);
     setIsTyping(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
+      // TEMPORARY [llm-debug] — debug: true makes /api/chat include
+      // debug.activeEngine and debug.parserSource in its response (visible
+      // in the browser's Network tab). Remove alongside the other
+      // [llm-debug] logging once the Google AI routing issue is confirmed
+      // solved.
+      const result = await processMessage({ message: text, context: contextRef.current, debug: true });
       setIsTyping(false);
-      const out = ai(text, phaseRef.current, draftRef.current);
-
-      if (out.confirmed) {
-        const orderId = String(1007 + Math.floor(Math.random() * 90));
-        addAI(
-          `✅ *Order received successfully.*\n\nOrder Number: *#${orderId}*\n\nStatus: ⏳ *Pending Verification*\n\nOur team will call you shortly to confirm your order.\n\nThank you for choosing *Think Food!* 🍔`
-        );
-        applyPhase("done");
-        return;
-      }
-
-      addAI(out.content);
-      if (out.nextPhase) applyPhase(out.nextPhase);
-      if (out.draftPatch) applyDraftPatch(out.draftPatch);
-      if (out.cartActions) {
-        for (const action of out.cartActions) applyCartAction(action);
-      } else if (out.cartAction) {
-        applyCartAction(out.cartAction);
-      }
+      addAI(result.reply);
+      contextRef.current = result.context;
+      if (result.isFinished) applyFinished(true);
     }, 1200);
   }
 
@@ -144,8 +119,8 @@ export function WhatsAppSimulator() {
     setMessages([]);
     setIsTyping(false);
     setInput("");
-    applyPhase("browsing");
-    draftRef.current = { cart: [] };
+    applyFinished(false);
+    contextRef.current = undefined;
     initialized.current = false;
     setTimeout(() => {
       if (initialized.current) return;
@@ -247,7 +222,7 @@ export function WhatsAppSimulator() {
           paddingBottom: "max(8px, env(safe-area-inset-bottom))",
         }}
       >
-        {phase === "done" ? (
+        {isFinished ? (
           <p className="flex-1 text-center text-[#8696a0] text-xs py-1">
             Order submitted — tap <RefreshCw size={11} className="inline" /> to start a new chat
           </p>

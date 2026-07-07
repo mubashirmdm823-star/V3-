@@ -1,0 +1,3465 @@
+[
+  {
+    "id": "STRICT_ADD_MISSED__add__en-add",
+    "title": "PARSER: STRICT_ADD_MISSED on add (en-add)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_ADD_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "checkout-interrupter",
+    "language": "english",
+    "failingTurnIndex": 1,
+    "failingMessage": "add 1 Pizza Small 6 inch",
+    "detail": "Canonical add of 1 × \"pizza-small-6-inch\" did not land (gained 0). State after: AWAITING_CLARIFICATION.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00000",
+      "seed": 1512674636,
+      "scenarioId": "mixed-journey-18445",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "checkout-interrupter",
+      "language": "english",
+      "turns": [
+        {
+          "message": "hi",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hi",
+            "language": "english"
+          }
+        },
+        {
+          "message": "add 1 Pizza Small 6 inch",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "en-add",
+            "language": "english",
+            "itemId": "pizza-small-6-inch",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "add 1 Singaporean Rice",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "en-add",
+            "language": "english",
+            "itemId": "singaporean-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "add 3 BBQ Sandwich",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "en-add",
+            "language": "english",
+            "itemId": "bbq-sandwich",
+            "qty": 3,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "INFO_MISSING_FROM_REPLY__askInfo__info-time-en",
+    "title": "RESPONSE: INFO_MISSING_FROM_REPLY on askInfo (info-time-en)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "INFO_MISSING_FROM_REPLY",
+    "scenarioKind": "mixed-journey",
+    "personality": "hinglish",
+    "language": "hinglish",
+    "failingTurnIndex": 2,
+    "failingMessage": "how long does delivery take",
+    "detail": "Info reply for \"delivery-time\" contains none of the expected facts.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00002",
+      "seed": 1871157528,
+      "scenarioId": "mixed-journey-10426",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "hinglish",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "hi",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hi",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Burgers mein kya options hain",
+          "expectation": {
+            "op": "browseCategory",
+            "tier": "natural",
+            "templateId": "hg-cat-options",
+            "language": "hinglish",
+            "categoryKey": "burgers"
+          }
+        },
+        {
+          "message": "how long does delivery take",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-time-en",
+            "language": "hinglish",
+            "infoTopic": "delivery-time",
+            "replyMustContainOneOf": [
+              "35 to 45 minutes",
+              "35"
+            ]
+          }
+        },
+        {
+          "message": "3 Think Food SP Burger add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "think-food-sp-burger",
+            "qty": 3,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "think-food-special-sandwich",
+              "think-food-special-pizza"
+            ]
+          }
+        },
+        {
+          "message": "Think Food SP Burger remove kar do",
+          "expectation": {
+            "op": "remove",
+            "tier": "strict",
+            "templateId": "ru-remove-kar-do",
+            "language": "hinglish",
+            "itemId": "think-food-sp-burger"
+          }
+        },
+        {
+          "message": "1 Singaporean Rice add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "singaporean-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "checkout",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "confirm order",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-order",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "House 12 Street 5 Nazimabad",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "hinglish",
+            "sentText": "House 12 Street 5 Nazimabad"
+          }
+        },
+        {
+          "message": "mera naam Bilal hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "hinglish",
+            "sentText": "Bilal"
+          }
+        },
+        {
+          "message": "submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-plain",
+            "language": "hinglish"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "INFO_MISSING_FROM_REPLY__askInfo__info-time-kitna",
+    "title": "RESPONSE: INFO_MISSING_FROM_REPLY on askInfo (info-time-kitna)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "INFO_MISSING_FROM_REPLY",
+    "scenarioKind": "mixed-journey",
+    "personality": "slow-typer",
+    "language": "roman-urdu",
+    "failingTurnIndex": 1,
+    "failingMessage": "delivery mein kitna time lagta hai",
+    "detail": "Info reply for \"delivery-time\" contains none of the expected facts.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00018",
+      "seed": 1465935288,
+      "scenarioId": "mixed-journey-12001",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "slow-typer",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "salam",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-salam",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery mein kitna time lagta hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-time-kitna",
+            "language": "roman-urdu",
+            "infoTopic": "delivery-time",
+            "replyMustContainOneOf": [
+              "35 to 45 minutes",
+              "35"
+            ]
+          }
+        },
+        {
+          "message": "1 Chicken Sandwich add kar do",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-kar-do",
+            "language": "roman-urdu",
+            "itemId": "chicken-sandwich",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "3 Pizza Small 6 inch add kar do",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-kar-do",
+            "language": "roman-urdu",
+            "itemId": "pizza-small-6-inch",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "cart dikhao",
+          "expectation": {
+            "op": "showCart",
+            "tier": "strict",
+            "templateId": "ru-cart-dikhao",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "1 Singaporean Rice add karo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-karo",
+            "language": "roman-urdu",
+            "itemId": "singaporean-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "haan confirm",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-haan",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "Apartment 401 Clifton Block 8",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "roman-urdu",
+            "sentText": "Apartment 401 Clifton Block 8"
+          }
+        },
+        {
+          "message": "mera naam Imran hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "roman-urdu",
+            "sentText": "Imran"
+          }
+        },
+        {
+          "message": "submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-plain",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "STRICT_ADD_MISSED__add__ru-add-kar-do",
+    "title": "PARSER: STRICT_ADD_MISSED on add (ru-add-kar-do)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_ADD_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "slow-typer",
+    "language": "roman-urdu",
+    "failingTurnIndex": 3,
+    "failingMessage": "3 Pizza Small 6 inch add kar do",
+    "detail": "Canonical add of 3 × \"pizza-small-6-inch\" did not land (gained 0). State after: CART_EDITING.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00018",
+      "seed": 1465935288,
+      "scenarioId": "mixed-journey-12001",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "slow-typer",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "salam",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-salam",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery mein kitna time lagta hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-time-kitna",
+            "language": "roman-urdu",
+            "infoTopic": "delivery-time",
+            "replyMustContainOneOf": [
+              "35 to 45 minutes",
+              "35"
+            ]
+          }
+        },
+        {
+          "message": "1 Chicken Sandwich add kar do",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-kar-do",
+            "language": "roman-urdu",
+            "itemId": "chicken-sandwich",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "3 Pizza Small 6 inch add kar do",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-kar-do",
+            "language": "roman-urdu",
+            "itemId": "pizza-small-6-inch",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "cart dikhao",
+          "expectation": {
+            "op": "showCart",
+            "tier": "strict",
+            "templateId": "ru-cart-dikhao",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "1 Singaporean Rice add karo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-karo",
+            "language": "roman-urdu",
+            "itemId": "singaporean-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "haan confirm",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-haan",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "Apartment 401 Clifton Block 8",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "roman-urdu",
+            "sentText": "Apartment 401 Clifton Block 8"
+          }
+        },
+        {
+          "message": "mera naam Imran hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "roman-urdu",
+            "sentText": "Imran"
+          }
+        },
+        {
+          "message": "submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-plain",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "STRICT_ADD_MISSED__add__hg-add-please",
+    "title": "PARSER: STRICT_ADD_MISSED on add (hg-add-please)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_ADD_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "old-customer",
+    "language": "mixed",
+    "failingTurnIndex": 1,
+    "failingMessage": "3 Pizza Regular 9 inch add karo please",
+    "detail": "Canonical add of 3 × \"pizza-regular-9-inch\" did not land (gained 0). State after: AWAITING_CLARIFICATION.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00024",
+      "seed": 750091480,
+      "scenarioId": "mixed-journey-18210",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "old-customer",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "timing kya hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-timing-kya",
+            "language": "mixed",
+            "infoTopic": "timing",
+            "replyMustContainOneOf": [
+              "6 PM to 3 AM"
+            ]
+          }
+        },
+        {
+          "message": "3 Pizza Regular 9 inch add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "mixed",
+            "itemId": "pizza-regular-9-inch",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping"
+            ]
+          }
+        },
+        {
+          "message": "show my cart",
+          "expectation": {
+            "op": "showCart",
+            "tier": "strict",
+            "templateId": "en-show-cart",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "1 Smoke Burger add karo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-karo",
+            "language": "mixed",
+            "itemId": "smoke-burger",
+            "qty": 1,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "smoke-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "place order",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-place-order",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "confirm kar do",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-kar-do",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "pickup",
+          "expectation": {
+            "op": "pickup",
+            "tier": "strict",
+            "templateId": "pickup-plain",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "my name is Zain",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-my-name-is",
+            "language": "mixed",
+            "sentText": "Zain"
+          }
+        },
+        {
+          "message": "final submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-final",
+            "language": "mixed"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "STRICT_ADD_MISSED__add__ru-ek-dedo",
+    "title": "PARSER: STRICT_ADD_MISSED on add (ru-ek-dedo)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_ADD_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "fast-typer",
+    "language": "mixed",
+    "failingTurnIndex": 3,
+    "failingMessage": "ek Pizza Regular 9 inch dedo",
+    "detail": "Canonical add of 1 × \"pizza-regular-9-inch\" did not land (gained 0). State after: AWAITING_CLARIFICATION.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00026",
+      "seed": 94474879,
+      "scenarioId": "mixed-journey-14733",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "fast-typer",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "hi",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hi",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "restaurant kahan hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-address-kahan",
+            "language": "mixed",
+            "infoTopic": "address",
+            "replyMustContainOneOf": [
+              "Nazimabad No. 5, Paposh Nagar (Near Sarafa Bazar)"
+            ]
+          }
+        },
+        {
+          "message": "2 Extra Chicken Small add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "mixed",
+            "itemId": "extra-chicken-small",
+            "qty": 2,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "pizza-small-6-inch",
+              "pizza-fries-small-box",
+              "pasta-small",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "pizza-small-cheese-topping",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "ek Pizza Regular 9 inch dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-ek-dedo",
+            "language": "mixed",
+            "itemId": "pizza-regular-9-inch",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping"
+            ]
+          }
+        },
+        {
+          "message": "add 1 Think Food SP Burger",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "en-add",
+            "language": "mixed",
+            "itemId": "think-food-sp-burger",
+            "qty": 1,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "think-food-special-sandwich",
+              "think-food-special-pizza"
+            ]
+          }
+        },
+        {
+          "message": "Think Food SP Burger hata kar Zinger Burger W/C add karo",
+          "expectation": {
+            "op": "replace",
+            "tier": "strict",
+            "templateId": "ru-hata-kar",
+            "language": "mixed",
+            "fromItemId": "think-food-sp-burger",
+            "toItemId": "zinger-burger-w-c"
+          }
+        },
+        {
+          "message": "ek Smoke Sandwich dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-ek-dedo",
+            "language": "mixed",
+            "itemId": "smoke-sandwich",
+            "qty": 1,
+            "allowedItemIds": [
+              "smoke-burger",
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "confirm order",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-order",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "Plot 78 PECHS Block 6",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "mixed",
+            "sentText": "Plot 78 PECHS Block 6"
+          }
+        },
+        {
+          "message": "my name is Maryam",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-my-name-is",
+            "language": "mixed",
+            "sentText": "Maryam"
+          }
+        },
+        {
+          "message": "submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-plain",
+            "language": "mixed"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "STRICT_ADD_MISSED__add__ru-add-karo",
+    "title": "PARSER: STRICT_ADD_MISSED on add (ru-add-karo)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_ADD_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "first-time-customer",
+    "language": "roman-urdu",
+    "failingTurnIndex": 2,
+    "failingMessage": "3 Hot Shot 8 pcs with fries add karo",
+    "detail": "Canonical add of 3 × \"hot-shot-8-pcs-with-fries\" did not land (gained 0). State after: AWAITING_CLARIFICATION.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00037",
+      "seed": 972524295,
+      "scenarioId": "mixed-journey-18011",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "first-time-customer",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "salam",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-salam",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "3 Smoke Burger dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "smoke-burger",
+            "qty": 3,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "smoke-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "3 Hot Shot 8 pcs with fries add karo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-karo",
+            "language": "roman-urdu",
+            "itemId": "hot-shot-8-pcs-with-fries",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "chicken-strips-6-pcs-with-fries",
+              "hot-shot-8-pcs-with-fries"
+            ]
+          }
+        },
+        {
+          "message": "sir 2 Crispy Sandwich dedo please",
+          "expectation": {
+            "op": "add",
+            "tier": "natural",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "crispy-sandwich",
+            "qty": 2,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "timing kya hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-timing-kya",
+            "language": "roman-urdu",
+            "infoTopic": "timing",
+            "replyMustContainOneOf": [
+              "6 PM to 3 AM"
+            ]
+          }
+        },
+        {
+          "message": "ek Smoke Sandwich dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-ek-dedo",
+            "language": "roman-urdu",
+            "itemId": "smoke-sandwich",
+            "qty": 1,
+            "allowedItemIds": [
+              "smoke-burger",
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "sir order place kardo yaar",
+          "expectation": {
+            "op": "checkout",
+            "tier": "natural",
+            "templateId": "checkout-ru",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "confirm kar do",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-kar-do",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "bhai pickup yaar",
+          "expectation": {
+            "op": "pickup",
+            "tier": "natural",
+            "templateId": "pickup-plain",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "mera naam Kiran hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "roman-urdu",
+            "sentText": "Kiran"
+          }
+        },
+        {
+          "message": "yes submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-yes",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "INFO_MISSING_FROM_REPLY__askInfo__info-timing-kya",
+    "title": "RESPONSE: INFO_MISSING_FROM_REPLY on askInfo (info-timing-kya)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "INFO_MISSING_FROM_REPLY",
+    "scenarioKind": "mixed-journey",
+    "personality": "first-time-customer",
+    "language": "roman-urdu",
+    "failingTurnIndex": 4,
+    "failingMessage": "timing kya hai",
+    "detail": "Info reply for \"timing\" contains none of the expected facts.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00037",
+      "seed": 972524295,
+      "scenarioId": "mixed-journey-18011",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "first-time-customer",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "salam",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-salam",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "3 Smoke Burger dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "smoke-burger",
+            "qty": 3,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "smoke-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "3 Hot Shot 8 pcs with fries add karo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-karo",
+            "language": "roman-urdu",
+            "itemId": "hot-shot-8-pcs-with-fries",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "chicken-strips-6-pcs-with-fries",
+              "hot-shot-8-pcs-with-fries"
+            ]
+          }
+        },
+        {
+          "message": "sir 2 Crispy Sandwich dedo please",
+          "expectation": {
+            "op": "add",
+            "tier": "natural",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "crispy-sandwich",
+            "qty": 2,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "timing kya hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-timing-kya",
+            "language": "roman-urdu",
+            "infoTopic": "timing",
+            "replyMustContainOneOf": [
+              "6 PM to 3 AM"
+            ]
+          }
+        },
+        {
+          "message": "ek Smoke Sandwich dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-ek-dedo",
+            "language": "roman-urdu",
+            "itemId": "smoke-sandwich",
+            "qty": 1,
+            "allowedItemIds": [
+              "smoke-burger",
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "sir order place kardo yaar",
+          "expectation": {
+            "op": "checkout",
+            "tier": "natural",
+            "templateId": "checkout-ru",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "confirm kar do",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-kar-do",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "bhai pickup yaar",
+          "expectation": {
+            "op": "pickup",
+            "tier": "natural",
+            "templateId": "pickup-plain",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "mera naam Kiran hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "roman-urdu",
+            "sentText": "Kiran"
+          }
+        },
+        {
+          "message": "yes submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-yes",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "INFO_MISSING_FROM_REPLY__askInfo__info-fee-charges",
+    "title": "RESPONSE: INFO_MISSING_FROM_REPLY on askInfo (info-fee-charges)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "INFO_MISSING_FROM_REPLY",
+    "scenarioKind": "mixed-journey",
+    "personality": "checkout-interrupter",
+    "language": "roman-urdu",
+    "failingTurnIndex": 1,
+    "failingMessage": "delivery charges kitne hain",
+    "detail": "Info reply for \"delivery-fee\" contains none of the expected facts.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00043",
+      "seed": 872968455,
+      "scenarioId": "mixed-journey-19077",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "checkout-interrupter",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "assalam o alaikum",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-aoa",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery charges kitne hain",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-fee-charges",
+            "language": "roman-urdu",
+            "infoTopic": "delivery-fee",
+            "replyMustContainOneOf": [
+              "150"
+            ]
+          }
+        },
+        {
+          "message": "ek Pasta Large dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-ek-dedo",
+            "language": "roman-urdu",
+            "itemId": "pasta-large",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "pizza-large-cheese-topping",
+              "extra-chicken-large"
+            ]
+          }
+        },
+        {
+          "message": "1 Zinger Burger add kar do",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-kar-do",
+            "language": "roman-urdu",
+            "itemId": "zinger-burger",
+            "qty": 1,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "jumbo-zinger",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "haan confirm",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-haan",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "1 Hot Shot 8 pcs with fries dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "natural",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "hot-shot-8-pcs-with-fries",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "chicken-strips-6-pcs-with-fries",
+              "hot-shot-8-pcs-with-fries"
+            ]
+          }
+        },
+        {
+          "message": "Plot 78 PECHS Block 6",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "roman-urdu",
+            "sentText": "Plot 78 PECHS Block 6"
+          }
+        },
+        {
+          "message": "mera naam Kiran hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "roman-urdu",
+            "sentText": "Kiran"
+          }
+        },
+        {
+          "message": "final submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-final",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "CLARIFICATION_WRONG_QTY__answerClarification__answer-full-name",
+    "title": "PARSER: CLARIFICATION_WRONG_QTY on answerClarification (answer-full-name)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "CLARIFICATION_WRONG_QTY",
+    "scenarioKind": "clarification-chain",
+    "personality": "roman-urdu",
+    "language": "roman-urdu",
+    "failingTurnIndex": 2,
+    "failingMessage": "Zinger Burger W/C",
+    "detail": "Clarification carried qty 3 but \"zinger-burger-w-c\" landed with 1.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00057",
+      "seed": 1101456695,
+      "scenarioId": "clarification-zinger",
+      "scenarioKind": "clarification-chain",
+      "quotaBucket": "clarification-chains",
+      "personality": "roman-urdu",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "assalam o alaikum",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-aoa",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "3 zinger",
+          "expectation": {
+            "op": "addAmbiguous",
+            "tier": "strict",
+            "templateId": "ambig-qty-phrase",
+            "language": "roman-urdu",
+            "phrase": "zinger",
+            "qty": 3,
+            "categoryKey": "burgers"
+          }
+        },
+        {
+          "message": "Zinger Burger W/C",
+          "expectation": {
+            "op": "answerClarification",
+            "tier": "strict",
+            "templateId": "answer-full-name",
+            "language": "roman-urdu",
+            "itemId": "zinger-burger-w-c"
+          }
+        },
+        {
+          "message": "cart dikhao",
+          "expectation": {
+            "op": "showCart",
+            "tier": "strict",
+            "templateId": "ru-cart-dikhao",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "INFO_MISSING_FROM_REPLY__askInfo__info-fee-en",
+    "title": "RESPONSE: INFO_MISSING_FROM_REPLY on askInfo (info-fee-en)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "INFO_MISSING_FROM_REPLY",
+    "scenarioKind": "mixed-journey",
+    "personality": "question-asker",
+    "language": "mixed",
+    "failingTurnIndex": 1,
+    "failingMessage": "what is the delivery fee",
+    "detail": "Info reply for \"delivery-fee\" contains none of the expected facts.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00083",
+      "seed": 826537229,
+      "scenarioId": "mixed-journey-14062",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "question-asker",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "show me the Pizza Fries",
+          "expectation": {
+            "op": "browseCategory",
+            "tier": "natural",
+            "templateId": "en-cat-show",
+            "language": "mixed",
+            "categoryKey": "pizzaFries"
+          }
+        },
+        {
+          "message": "what is the delivery fee",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-fee-en",
+            "language": "mixed",
+            "infoTopic": "delivery-fee",
+            "replyMustContainOneOf": [
+              "150"
+            ]
+          }
+        },
+        {
+          "message": "1 Think Food Special Pizza add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "mixed",
+            "itemId": "think-food-special-pizza",
+            "qty": 1,
+            "allowedItemIds": [
+              "think-food-sp-burger",
+              "think-food-special-sandwich",
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping"
+            ]
+          }
+        },
+        {
+          "message": "2 Olive Mushroom Jalapeno add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "mixed",
+            "itemId": "olive-mushroom-jalapeno",
+            "qty": 2,
+            "allowedItemIds": [
+              "olive-mushroom-jalapeno"
+            ]
+          }
+        },
+        {
+          "message": "2 Mexican Pasta white sauce add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "mixed",
+            "itemId": "mexican-pasta-white-sauce",
+            "qty": 2,
+            "allowedItemIds": [
+              "mexican-sandwich",
+              "mexican-pizza",
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "add 1 Extra Chicken Medium",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "en-add",
+            "language": "mixed",
+            "itemId": "extra-chicken-medium",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "pizza-medium-cheese-topping",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "confirm order",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-order",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "pickup",
+          "expectation": {
+            "op": "pickup",
+            "tier": "strict",
+            "templateId": "pickup-plain",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "mera naam Kiran hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "mixed",
+            "sentText": "Kiran"
+          }
+        },
+        {
+          "message": "yes submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-yes",
+            "language": "mixed"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "PRICE_MISSING_FROM_REPLY__price__ru-price-kya-hai",
+    "title": "RESPONSE: PRICE_MISSING_FROM_REPLY on price (ru-price-kya-hai)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "PRICE_MISSING_FROM_REPLY",
+    "scenarioKind": "checkout-interrupt",
+    "personality": "question-asker",
+    "language": "hinglish",
+    "failingTurnIndex": 7,
+    "failingMessage": "Club Sandwich ki price kya hai",
+    "detail": "Price reply for \"club-sandwich\" contains none of: 500.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00086",
+      "seed": 963576697,
+      "scenarioId": "checkout-interrupt-READY_TO_SUBMIT",
+      "scenarioKind": "checkout-interrupt",
+      "quotaBucket": "checkout-interruptions",
+      "personality": "question-asker",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "1 Pizza Small Cheese Topping add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "pizza-small-cheese-topping",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "haan confirm",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-haan",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "House 12 Street 5 Nazimabad",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "hinglish",
+            "sentText": "House 12 Street 5 Nazimabad"
+          }
+        },
+        {
+          "message": "my name is Omar",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-my-name-is",
+            "language": "hinglish",
+            "sentText": "Omar"
+          }
+        },
+        {
+          "message": "1 Hot Shot 8 pcs with fries add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "hot-shot-8-pcs-with-fries",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "chicken-strips-6-pcs-with-fries",
+              "hot-shot-8-pcs-with-fries"
+            ]
+          }
+        },
+        {
+          "message": "Club Sandwich ki price kya hai",
+          "expectation": {
+            "op": "price",
+            "tier": "strict",
+            "templateId": "ru-price-kya-hai",
+            "language": "hinglish",
+            "itemId": "club-sandwich",
+            "replyMustContainOneOf": [
+              "500"
+            ]
+          }
+        },
+        {
+          "message": "checkout",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "haan confirm",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-haan",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Shop 4 Hyderi Market North Nazimabad",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "hinglish",
+            "sentText": "Shop 4 Hyderi Market North Nazimabad"
+          }
+        },
+        {
+          "message": "Hassan",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-bare",
+            "language": "hinglish",
+            "sentText": "Hassan"
+          }
+        },
+        {
+          "message": "done",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-done",
+            "language": "hinglish"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "STRICT_ADD_MISSED__add__ru-add-dedo",
+    "title": "PARSER: STRICT_ADD_MISSED on add (ru-add-dedo)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_ADD_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "roman-urdu",
+    "language": "roman-urdu",
+    "failingTurnIndex": 2,
+    "failingMessage": "3 Pizza Small 6 inch dedo",
+    "detail": "Canonical add of 3 × \"pizza-small-6-inch\" did not land (gained 0). State after: AWAITING_CLARIFICATION.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00097",
+      "seed": 2625983662,
+      "scenarioId": "mixed-journey-13678",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "roman-urdu",
+      "language": "roman-urdu",
+      "turns": [
+        {
+          "message": "Pasta dikhao",
+          "expectation": {
+            "op": "browseCategory",
+            "tier": "strict",
+            "templateId": "ru-cat-dikhao",
+            "language": "roman-urdu",
+            "categoryKey": "pasta"
+          }
+        },
+        {
+          "message": "timing kya hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-timing-kya",
+            "language": "roman-urdu",
+            "infoTopic": "timing",
+            "replyMustContainOneOf": [
+              "6 PM to 3 AM"
+            ]
+          }
+        },
+        {
+          "message": "3 Pizza Small 6 inch dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "pizza-small-6-inch",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "3 Gyro dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "gyro",
+            "qty": 3,
+            "allowedItemIds": [
+              "gyro"
+            ]
+          }
+        },
+        {
+          "message": "2 Vegetable Rice dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-add-dedo",
+            "language": "roman-urdu",
+            "itemId": "vegetable-rice",
+            "qty": 2,
+            "allowedItemIds": [
+              "vegetable-chowmein",
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice"
+            ]
+          }
+        },
+        {
+          "message": "ek Pasta Small dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "ru-ek-dedo",
+            "language": "roman-urdu",
+            "itemId": "pasta-small",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-small-6-inch",
+              "pizza-fries-small-box",
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "confirm kar do",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-kar-do",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "roman-urdu"
+          }
+        },
+        {
+          "message": "Apartment 401 Clifton Block 8",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "roman-urdu",
+            "sentText": "Apartment 401 Clifton Block 8"
+          }
+        },
+        {
+          "message": "mera naam Ali hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "roman-urdu",
+            "sentText": "Ali"
+          }
+        },
+        {
+          "message": "submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-plain",
+            "language": "roman-urdu"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "REMOVE_WRONG_ITEM__remove__en-remove",
+    "title": "PARSER: REMOVE_WRONG_ITEM on remove (en-remove)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "REMOVE_WRONG_ITEM",
+    "scenarioKind": "mixed-journey",
+    "personality": "shortform-heavy",
+    "language": "hinglish",
+    "failingTurnIndex": 4,
+    "failingMessage": "removee smoke burger",
+    "detail": "Removing absent \"smoke-burger\" changed the cart anyway.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00101",
+      "seed": 3270902352,
+      "scenarioId": "mixed-journey-10981",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "shortform-heavy",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "hello",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hello",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "✨ delivery charges kitne hin ✨",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "corrupted",
+            "templateId": "info-fee-charges",
+            "language": "hinglish",
+            "infoTopic": "delivery-fee",
+            "replyMustContainOneOf": [
+              "150"
+            ]
+          }
+        },
+        {
+          "message": "ek smooke burger dedo",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "ru-ek-dedo",
+            "language": "hinglish",
+            "itemId": "smoke-burger",
+            "qty": 1,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "smoke-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "2 zinger burger w/c add krao plz",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "zinger-burger-w-c",
+            "qty": 2,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "jumbo-zinger",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger"
+            ]
+          }
+        },
+        {
+          "message": "removee smoke burger",
+          "expectation": {
+            "op": "remove",
+            "tier": "corrupted",
+            "templateId": "en-remove",
+            "language": "hinglish",
+            "itemId": "smoke-burger"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "REMOVE_WRONG_ITEM__remove__hg-remove-yaar",
+    "title": "PARSER: REMOVE_WRONG_ITEM on remove (hg-remove-yaar)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "REMOVE_WRONG_ITEM",
+    "scenarioKind": "mixed-journey",
+    "personality": "confused-customer",
+    "language": "hinglish",
+    "failingTurnIndex": 3,
+    "failingMessage": "yaar Alfredo Pasta white sauce hatado",
+    "detail": "Removing absent \"alfredo-pasta-white-sauce\" changed the cart anyway.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00154",
+      "seed": 3931916165,
+      "scenarioId": "mixed-journey-11579",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "confused-customer",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "sir hello",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hello",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "2 Pizza Small 6 inch add karo please yaar",
+          "expectation": {
+            "op": "add",
+            "tier": "natural",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "pizza-small-6-inch",
+            "qty": 2,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "bhai 1 Alfredo Pasta white sauce add kar do",
+          "expectation": {
+            "op": "add",
+            "tier": "natural",
+            "templateId": "hg-bhai-add",
+            "language": "hinglish",
+            "itemId": "alfredo-pasta-white-sauce",
+            "qty": 1,
+            "allowedItemIds": [
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "yaar Alfredo Pasta white sauce hatado",
+          "expectation": {
+            "op": "remove",
+            "tier": "natural",
+            "templateId": "hg-remove-yaar",
+            "language": "hinglish",
+            "itemId": "alfredo-pasta-white-sauce"
+          }
+        },
+        {
+          "message": "2 Wrap add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "wrap",
+            "qty": 2,
+            "allowedItemIds": [
+              "wrap"
+            ]
+          }
+        },
+        {
+          "message": "timing kya hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-timing-kya",
+            "language": "hinglish",
+            "infoTopic": "timing",
+            "replyMustContainOneOf": [
+              "6 PM to 3 AM"
+            ]
+          }
+        },
+        {
+          "message": "3 Grill Sandwich add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "grill-sandwich",
+            "qty": 3,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "cart dikhao yaar",
+          "expectation": {
+            "op": "showCart",
+            "tier": "natural",
+            "templateId": "ru-cart-dikhao",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "1 Alfredo Pasta white sauce add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "alfredo-pasta-white-sauce",
+            "qty": 1,
+            "allowedItemIds": [
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "bhai checkout yaar",
+          "expectation": {
+            "op": "checkout",
+            "tier": "natural",
+            "templateId": "checkout-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "haan confirm",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-haan",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "pickup",
+          "expectation": {
+            "op": "pickup",
+            "tier": "strict",
+            "templateId": "pickup-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Hassan",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-bare",
+            "language": "hinglish",
+            "sentText": "Hassan"
+          }
+        },
+        {
+          "message": "done",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-done",
+            "language": "hinglish"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "CART_MUTATED_BY_NON_ORDER_MESSAGE__invalid__invalid-literal",
+    "title": "SAFETY: CART_MUTATED_BY_NON_ORDER_MESSAGE on invalid (invalid-literal)",
+    "status": "fixed",
+    "classification": "SAFETY",
+    "failureCode": "CART_MUTATED_BY_NON_ORDER_MESSAGE",
+    "scenarioKind": "invalid-input",
+    "personality": "checkout-interrupter",
+    "language": "mixed",
+    "failingTurnIndex": 0,
+    "failingMessage": "{\"intent\":\"ADD_ITEM\",\"items\":[{\"id\":\"zinger-burger\"}]}",
+    "detail": "A \"invalid\" message mutated the cart: [{\"itemId\":\"zinger-burger\",\"name\":\"Zinger Burger\",\"qtyDelta\":1}].",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00207",
+      "seed": 2058518612,
+      "scenarioId": "invalid-7",
+      "scenarioKind": "invalid-input",
+      "quotaBucket": "coverage-sweep",
+      "personality": "checkout-interrupter",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "{\"intent\":\"ADD_ITEM\",\"items\":[{\"id\":\"zinger-burger\"}]}",
+          "expectation": {
+            "op": "invalid",
+            "tier": "natural",
+            "templateId": "invalid-literal",
+            "language": "mixed"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "REMOVE_WRONG_ITEM__remove__ru-remove-kar-do",
+    "title": "PARSER: REMOVE_WRONG_ITEM on remove (ru-remove-kar-do)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "REMOVE_WRONG_ITEM",
+    "scenarioKind": "mixed-journey",
+    "personality": "spacing-mistakes",
+    "language": "mixed",
+    "failingTurnIndex": 3,
+    "failingMessage": "P astaSma ll r emo ve kardo",
+    "detail": "Removing absent \"pasta-small\" changed the cart anyway.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00313",
+      "seed": 1604716867,
+      "scenarioId": "mixed-journey-2455",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed",
+      "personality": "spacing-mistakes",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "hello",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hello",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "ad d 2 Pasta Small",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "en-add",
+            "language": "mixed",
+            "itemId": "pasta-small",
+            "qty": 2,
+            "allowedItemIds": [
+              "pizza-small-6-inch",
+              "pizza-fries-small-box",
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "add 1 White Singaporean",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "en-add",
+            "language": "mixed",
+            "itemId": "white-singaporean",
+            "qty": 1,
+            "allowedItemIds": [
+              "alfredo-pasta-white-sauce",
+              "mexican-pasta-white-sauce",
+              "singaporean-rice",
+              "white-singaporean"
+            ]
+          }
+        },
+        {
+          "message": "P astaSma ll r emo ve kardo",
+          "expectation": {
+            "op": "remove",
+            "tier": "corrupted",
+            "templateId": "ru-remove-kar-do",
+            "language": "mixed",
+            "itemId": "pasta-small"
+          }
+        },
+        {
+          "message": "1 Pa sta Largea ddkardo",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "ru-add-kar-do",
+            "language": "mixed",
+            "itemId": "pasta-large",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pasta-large",
+              "alfredo-pasta-white-sauce",
+              "macaroni-pasta-red-sauce",
+              "mexican-pasta-white-sauce",
+              "pizza-large-cheese-topping",
+              "extra-chicken-large"
+            ]
+          }
+        },
+        {
+          "message": "or derplac e kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "corrupted",
+            "templateId": "checkout-ru",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "confirm kar do",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-kar-do",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "delivery",
+          "expectation": {
+            "op": "delivery",
+            "tier": "strict",
+            "templateId": "delivery-plain",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "House 23 Buffer Zone Sector 15",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "mixed",
+            "sentText": "House 23 Buffer Zone Sector 15"
+          }
+        },
+        {
+          "message": "mera naam Ahmed hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "mixed",
+            "sentText": "Ahmed"
+          }
+        },
+        {
+          "message": "submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-plain",
+            "language": "mixed"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "STRICT_REPLACE_MISSED__replace__ru-hata-kar",
+    "title": "PARSER: STRICT_REPLACE_MISSED on replace (ru-hata-kar)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "STRICT_REPLACE_MISSED",
+    "scenarioKind": "mixed-journey",
+    "personality": "hinglish",
+    "language": "hinglish",
+    "failingTurnIndex": 3,
+    "failingMessage": "Chicken Fried Rice hata kar Chicken Strips 6 pcs with fries add karo",
+    "detail": "Replace \"chicken-fried-rice\"->\"chicken-strips-6-pcs-with-fries\": from STILL PRESENT, to MISSING.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00409",
+      "seed": 2236683517,
+      "scenarioId": "mixed-journey-13304",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "hinglish",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "1 Jumbo Zinger add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "jumbo-zinger",
+            "qty": 1,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "jumbo-zinger"
+            ]
+          }
+        },
+        {
+          "message": "3 Think Food SP Burger add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "think-food-sp-burger",
+            "qty": 3,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger",
+              "think-food-special-sandwich",
+              "think-food-special-pizza"
+            ]
+          }
+        },
+        {
+          "message": "1 Chicken Fried Rice add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "chicken-fried-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "Chicken Fried Rice hata kar Chicken Strips 6 pcs with fries add karo",
+          "expectation": {
+            "op": "replace",
+            "tier": "strict",
+            "templateId": "ru-hata-kar",
+            "language": "hinglish",
+            "fromItemId": "chicken-fried-rice",
+            "toItemId": "chicken-strips-6-pcs-with-fries"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "CLARIFICATION_ANSWER_MISSED__answerClarification__answer-full-name",
+    "title": "PARSER: CLARIFICATION_ANSWER_MISSED on answerClarification (answer-full-name)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "CLARIFICATION_ANSWER_MISSED",
+    "scenarioKind": "clarification-chain",
+    "personality": "question-asker",
+    "language": "english",
+    "failingTurnIndex": 2,
+    "failingMessage": "Pizza Large 12 inch",
+    "detail": "Answering the \"pizza\" clarification with \"pizza-large-12-inch\" added nothing. State after: AWAITING_CLARIFICATION.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-00807",
+      "seed": 52184521,
+      "scenarioId": "clarification-pizza",
+      "scenarioKind": "clarification-chain",
+      "quotaBucket": "clarification-chains",
+      "personality": "question-asker",
+      "language": "english",
+      "turns": [
+        {
+          "message": "hi",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hi",
+            "language": "english"
+          }
+        },
+        {
+          "message": "pizza dedo",
+          "expectation": {
+            "op": "addAmbiguous",
+            "tier": "strict",
+            "templateId": "ambig-dedo",
+            "language": "english",
+            "phrase": "pizza",
+            "qty": 3,
+            "categoryKey": "pizza"
+          }
+        },
+        {
+          "message": "Pizza Large 12 inch",
+          "expectation": {
+            "op": "answerClarification",
+            "tier": "strict",
+            "templateId": "answer-full-name",
+            "language": "english",
+            "itemId": "pizza-large-12-inch"
+          }
+        },
+        {
+          "message": "show my cart",
+          "expectation": {
+            "op": "showCart",
+            "tier": "strict",
+            "templateId": "en-show-cart",
+            "language": "english"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "WRONG_QUANTITY_ADDED__add__qty-x-suffix",
+    "title": "PARSER: WRONG_QUANTITY_ADDED on add (qty-x-suffix)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "WRONG_QUANTITY_ADDED",
+    "scenarioKind": "quantity-style",
+    "personality": "mixed-language",
+    "language": "mixed",
+    "failingTurnIndex": 1,
+    "failingMessage": "Chicken Fried Rice x5",
+    "detail": "Asked for 5 × \"chicken-fried-rice\" but the cart gained 1.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-01053",
+      "seed": 789038116,
+      "scenarioId": "qty-style-x-suffix-chicken-fried-rice",
+      "scenarioKind": "quantity-style",
+      "quotaBucket": "coverage-sweep",
+      "personality": "mixed-language",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "assalam o alaikum",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-aoa",
+            "language": "mixed"
+          }
+        },
+        {
+          "message": "Chicken Fried Rice x5",
+          "expectation": {
+            "op": "add",
+            "tier": "natural",
+            "templateId": "qty-x-suffix",
+            "language": "mixed",
+            "itemId": "chicken-fried-rice",
+            "qty": 5,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "REMOVE_WRONG_ITEM__remove__ru-hata-do",
+    "title": "PARSER: REMOVE_WRONG_ITEM on remove (ru-hata-do)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "REMOVE_WRONG_ITEM",
+    "scenarioKind": "mixed-journey",
+    "personality": "spacing-mistakes",
+    "language": "hinglish",
+    "failingTurnIndex": 4,
+    "failingMessage": "ThinkFoodSpe cialPiz zah atado",
+    "detail": "Removing absent \"think-food-special-pizza\" changed the cart anyway.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-01144",
+      "seed": 1165478267,
+      "scenarioId": "mixed-journey-11390",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "spacing-mistakes",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "location bhej dein",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "natural",
+            "templateId": "info-location-bhejo",
+            "language": "hinglish",
+            "infoTopic": "location",
+            "replyMustContainOneOf": [
+              "Nazimabad No. 5, Paposh Nagar (Near Sarafa Bazar)",
+              "maps"
+            ]
+          }
+        },
+        {
+          "message": "3 Th in kFood Sp ec ia lPizz a add ka r o p lea se",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "think-food-special-pizza",
+            "qty": 3,
+            "allowedItemIds": [
+              "think-food-sp-burger",
+              "think-food-special-sandwich",
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping"
+            ]
+          }
+        },
+        {
+          "message": "3 ExtraCh ickenMedium add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "extra-chicken-medium",
+            "qty": 3,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "chicken-chowmein",
+              "chicken-fried-rice",
+              "chicken-strips-6-pcs-with-fries",
+              "chicken-steak",
+              "pizza-medium-cheese-topping",
+              "extra-chicken-large",
+              "extra-chicken-medium",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "1 Hot Shot 8 pcs withfries addkaro please",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "hot-shot-8-pcs-with-fries",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "chicken-strips-6-pcs-with-fries",
+              "hot-shot-8-pcs-with-fries"
+            ]
+          }
+        },
+        {
+          "message": "ThinkFoodSpe cialPiz zah atado",
+          "expectation": {
+            "op": "remove",
+            "tier": "corrupted",
+            "templateId": "ru-hata-do",
+            "language": "hinglish",
+            "itemId": "think-food-special-pizza"
+          }
+        },
+        {
+          "message": "1 Jum bo Zingeradd k aro please",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "jumbo-zinger",
+            "qty": 1,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "jumbo-zinger"
+            ]
+          }
+        },
+        {
+          "message": "placeo rder",
+          "expectation": {
+            "op": "checkout",
+            "tier": "corrupted",
+            "templateId": "checkout-place-order",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "confirm kar do",
+          "expectation": {
+            "op": "confirm",
+            "tier": "strict",
+            "templateId": "confirm-kar-do",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "d elive ry",
+          "expectation": {
+            "op": "delivery",
+            "tier": "corrupted",
+            "templateId": "delivery-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Flat 3B Gulshan Block 13",
+          "expectation": {
+            "op": "address",
+            "tier": "strict",
+            "templateId": "address-real",
+            "language": "hinglish",
+            "sentText": "Flat 3B Gulshan Block 13"
+          }
+        },
+        {
+          "message": "my name is Ahmed",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-my-name-is",
+            "language": "hinglish",
+            "sentText": "Ahmed"
+          }
+        },
+        {
+          "message": "done",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-done",
+            "language": "hinglish"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "WRONG_ITEM_ADDED__replace__ru-hata-kar",
+    "title": "PARSER: WRONG_ITEM_ADDED on replace (ru-hata-kar)",
+    "status": "fixed",
+    "classification": "PARSER",
+    "failureCode": "WRONG_ITEM_ADDED",
+    "scenarioKind": "mixed-journey",
+    "personality": "shortform-heavy",
+    "language": "hinglish",
+    "failingTurnIndex": 6,
+    "failingMessage": "pizza medium cheese topping haata kar pizza smlal cheese topping add karo",
+    "detail": "Replace with nothing to replace still added pizza-medium-cheese-topping.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-01356",
+      "seed": 324312706,
+      "scenarioId": "mixed-journey-15275",
+      "scenarioKind": "mixed-journey",
+      "quotaBucket": "mixed-journey-fill",
+      "personality": "shortform-heavy",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "salam",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-salam",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "pizz fries me kya options hain",
+          "expectation": {
+            "op": "browseCategory",
+            "tier": "corrupted",
+            "templateId": "hg-cat-options",
+            "language": "hinglish",
+            "categoryKey": "pizzaFries"
+          }
+        },
+        {
+          "message": "2 Zinger Burger add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "zinger-burger",
+            "qty": 2,
+            "allowedItemIds": [
+              "zinger-burger",
+              "zinger-burger-w-c",
+              "jumbo-zinger",
+              "think-food-sp-burger",
+              "smoke-burger",
+              "spicy-stuff-burger"
+            ]
+          }
+        },
+        {
+          "message": "3 club sandwich add karo plz 🔥",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "club-sandwich",
+            "qty": 3,
+            "allowedItemIds": [
+              "chicken-sandwich",
+              "club-sandwich",
+              "bbq-sandwich",
+              "smoke-sandwich",
+              "vegi-sandwich",
+              "mexican-sandwich",
+              "crispy-sandwich",
+              "think-food-special-sandwich",
+              "grill-sandwich"
+            ]
+          }
+        },
+        {
+          "message": "3 pziza mediuum cheese topping add kaaro plz",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "pizza-medium-cheese-topping",
+            "qty": 3,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-medium"
+            ]
+          }
+        },
+        {
+          "message": "remmove zinger burger 🍔",
+          "expectation": {
+            "op": "remove",
+            "tier": "corrupted",
+            "templateId": "en-remove",
+            "language": "hinglish",
+            "itemId": "zinger-burger"
+          }
+        },
+        {
+          "message": "pizza medium cheese topping haata kar pizza smlal cheese topping add karo",
+          "expectation": {
+            "op": "replace",
+            "tier": "corrupted",
+            "templateId": "ru-hata-kar",
+            "language": "hinglish",
+            "fromItemId": "pizza-medium-cheese-topping",
+            "toItemId": "pizza-small-cheese-topping"
+          }
+        },
+        {
+          "message": "1 veegetable rice add karo plz 🤤",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "vegetable-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "vegetable-chowmein",
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice"
+            ]
+          }
+        },
+        {
+          "message": "🥤 checkout",
+          "expectation": {
+            "op": "checkout",
+            "tier": "corrupted",
+            "templateId": "checkout-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "confiirm oredr",
+          "expectation": {
+            "op": "confirm",
+            "tier": "corrupted",
+            "templateId": "confirm-order",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "pickup 🍔",
+          "expectation": {
+            "op": "pickup",
+            "tier": "corrupted",
+            "templateId": "pickup-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Sara",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-bare",
+            "language": "hinglish",
+            "sentText": "Sara"
+          }
+        },
+        {
+          "message": "yes submit",
+          "expectation": {
+            "op": "submit",
+            "tier": "strict",
+            "templateId": "submit-yes",
+            "language": "hinglish"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "CART_MUTATED_BY_NON_ORDER_MESSAGE__price__ru-price-kya-hai",
+    "title": "SAFETY: CART_MUTATED_BY_NON_ORDER_MESSAGE on price (ru-price-kya-hai)",
+    "status": "fixed",
+    "classification": "SAFETY",
+    "failureCode": "CART_MUTATED_BY_NON_ORDER_MESSAGE",
+    "scenarioKind": "long-conversation",
+    "personality": "spacing-mistakes",
+    "language": "hinglish",
+    "failingTurnIndex": 3,
+    "failingMessage": "P izza Large Chees e Toppin g kipric eky ahai",
+    "detail": "A \"price\" message mutated the cart: [{\"itemId\":\"pizza-large-cheese-topping\",\"name\":\"Pizza Large Cheese Topping\",\"qtyDelta\":1}].",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-01373",
+      "seed": 3191160522,
+      "scenarioId": "long-conversation",
+      "scenarioKind": "long-conversation",
+      "quotaBucket": "long-conversations",
+      "personality": "spacing-mistakes",
+      "language": "hinglish",
+      "turns": [
+        {
+          "message": "hello",
+          "expectation": {
+            "op": "greet",
+            "tier": "natural",
+            "templateId": "greet-hello",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "m enu dikhao",
+          "expectation": {
+            "op": "showMenu",
+            "tier": "corrupted",
+            "templateId": "ru-menu-dikhao",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Stea ksmeinkya option s h ain",
+          "expectation": {
+            "op": "browseCategory",
+            "tier": "corrupted",
+            "templateId": "hg-cat-options",
+            "language": "hinglish",
+            "categoryKey": "steaks"
+          }
+        },
+        {
+          "message": "P izza Large Chees e Toppin g kipric eky ahai",
+          "expectation": {
+            "op": "price",
+            "tier": "corrupted",
+            "templateId": "ru-price-kya-hai",
+            "language": "hinglish",
+            "itemId": "pizza-large-cheese-topping",
+            "replyMustContainOneOf": [
+              "250"
+            ]
+          }
+        },
+        {
+          "message": "2 PizzaLarge CheeseTopping add karoplease",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "pizza-large-cheese-topping",
+            "qty": 2,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-large",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-large"
+            ]
+          }
+        },
+        {
+          "message": "delivery mein kitna time lagta hai",
+          "expectation": {
+            "op": "askInfo",
+            "tier": "strict",
+            "templateId": "info-time-kitna",
+            "language": "hinglish",
+            "infoTopic": "delivery-time",
+            "replyMustContainOneOf": [
+              "35 to 45 minutes",
+              "35"
+            ]
+          }
+        },
+        {
+          "message": "1 Egg Rice add karo please",
+          "expectation": {
+            "op": "add",
+            "tier": "strict",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "egg-rice",
+            "qty": 1,
+            "allowedItemIds": [
+              "chicken-fried-rice",
+              "vegetable-rice",
+              "egg-rice",
+              "singaporean-rice"
+            ]
+          }
+        },
+        {
+          "message": "s h ow myc art",
+          "expectation": {
+            "op": "showCart",
+            "tier": "corrupted",
+            "templateId": "en-show-cart",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "Piz zaLargeChees e To p p ing re mov e k ardo",
+          "expectation": {
+            "op": "remove",
+            "tier": "corrupted",
+            "templateId": "ru-remove-kar-do",
+            "language": "hinglish",
+            "itemId": "pizza-large-cheese-topping"
+          }
+        },
+        {
+          "message": "1 PizzaSmall 6 inch addkaro pl eas e",
+          "expectation": {
+            "op": "add",
+            "tier": "corrupted",
+            "templateId": "hg-add-please",
+            "language": "hinglish",
+            "itemId": "pizza-small-6-inch",
+            "qty": 1,
+            "allowedItemIds": [
+              "pizza-large-12-inch",
+              "pizza-regular-9-inch",
+              "pizza-small-6-inch",
+              "think-food-special-pizza",
+              "mexican-pizza",
+              "pizza-fries-small-box",
+              "pizza-fries-large-box",
+              "pasta-small",
+              "pizza-large-cheese-topping",
+              "pizza-medium-cheese-topping",
+              "pizza-small-cheese-topping",
+              "extra-chicken-small"
+            ]
+          }
+        },
+        {
+          "message": "order place kardo",
+          "expectation": {
+            "op": "checkout",
+            "tier": "strict",
+            "templateId": "checkout-ru",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "c onfirm order",
+          "expectation": {
+            "op": "confirm",
+            "tier": "corrupted",
+            "templateId": "confirm-order",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "picku p",
+          "expectation": {
+            "op": "pickup",
+            "tier": "corrupted",
+            "templateId": "pickup-plain",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "mera naam Ahmed hai",
+          "expectation": {
+            "op": "name",
+            "tier": "strict",
+            "templateId": "name-mera-naam",
+            "language": "hinglish",
+            "sentText": "Ahmed"
+          }
+        },
+        {
+          "message": "yessubmit",
+          "expectation": {
+            "op": "submit",
+            "tier": "corrupted",
+            "templateId": "submit-yes",
+            "language": "hinglish"
+          }
+        },
+        {
+          "message": "thankyou",
+          "expectation": {
+            "op": "postSubmitMessage",
+            "tier": "corrupted",
+            "templateId": "post-thank-you",
+            "language": "hinglish"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "CART_CHANGE_NOT_ACKNOWLEDGED__answerClarification__answer-full-name",
+    "title": "RESPONSE: CART_CHANGE_NOT_ACKNOWLEDGED on answerClarification (answer-full-name)",
+    "status": "fixed",
+    "classification": "RESPONSE",
+    "failureCode": "CART_CHANGE_NOT_ACKNOWLEDGED",
+    "scenarioKind": "clarification-chain",
+    "personality": "bad-spelling",
+    "language": "mixed",
+    "failingTurnIndex": 1,
+    "failingMessage": "Thinkk Foood Special Pziza",
+    "detail": "Cart changed (think-food-special-pizza) but the reply names none of the affected items.",
+    "discovered": "2026-07-03",
+    "conversation": {
+      "id": "qa-20260703-02021",
+      "seed": 1845724684,
+      "scenarioId": "clarification-pizza",
+      "scenarioKind": "clarification-chain",
+      "quotaBucket": "clarification-chains",
+      "personality": "bad-spelling",
+      "language": "mixed",
+      "turns": [
+        {
+          "message": "3 pizza",
+          "expectation": {
+            "op": "addAmbiguous",
+            "tier": "strict",
+            "templateId": "ambig-qty-phrase",
+            "language": "mixed",
+            "phrase": "pizza",
+            "qty": 3,
+            "categoryKey": "pizza"
+          }
+        },
+        {
+          "message": "Thinkk Foood Special Pziza",
+          "expectation": {
+            "op": "answerClarification",
+            "tier": "corrupted",
+            "templateId": "answer-full-name",
+            "language": "mixed",
+            "itemId": "think-food-special-pizza"
+          }
+        },
+        {
+          "message": "cart dikkhao",
+          "expectation": {
+            "op": "showCart",
+            "tier": "corrupted",
+            "templateId": "ru-cart-dikhao",
+            "language": "mixed"
+          }
+        }
+      ]
+    }
+  }
+]
