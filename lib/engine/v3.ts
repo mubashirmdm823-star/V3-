@@ -19,6 +19,7 @@ import {
   type AgentSession,
   type AgentTurn,
 } from "@/v3/agent";
+import { createEmptyMemory, type ConversationMemory } from "@/v3/agent/conversation-memory";
 import type { AIEngine, EngineCartItem, EngineRequest, EngineResponse } from "./types";
 
 const menu = menuData as Menu;
@@ -56,7 +57,12 @@ function resolveSession(raw: unknown): AgentSession {
     const obj = raw as Record<string, unknown>;
     const conversation = restoreContext(JSON.stringify(obj.conversation));
     const history = isValidHistory(obj.history) ? obj.history : [];
-    return { conversation, history };
+    // Older serialized sessions (pre-Phase-2) never had a `memory` field —
+    // defaulting missing/malformed pieces to createEmptyMemory() is a safe
+    // restore, same "never throw on foreign/old state" rule as conversation/
+    // history above.
+    const memory = (isPlainObject(obj.memory) ? { ...createEmptyMemory(), ...obj.memory } : createEmptyMemory()) as ConversationMemory;
+    return { conversation, history, memory };
   } catch {
     return freshSession();
   }

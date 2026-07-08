@@ -6,6 +6,7 @@
 
 import type { Menu, RestaurantConfig } from "../../v2/types/menu";
 import { createConversationContext, type ConversationContext } from "../../v2/core/context-manager";
+import { createEmptyMemory, type ConversationMemory } from "./conversation-memory";
 
 export interface AgentTurn {
   role: "customer" | "agent";
@@ -17,6 +18,10 @@ export const MAX_HISTORY_TURNS = 12;
 export interface AgentSession {
   conversation: ConversationContext;
   history: AgentTurn[];
+  // Phase 2 — everything V3 remembers beyond OrderContext itself (topic,
+  // last-mentioned item/category, preferences, the V3-only removal-
+  // clarification lock). See conversation-memory.ts.
+  memory: ConversationMemory;
 }
 
 export function appendTurn(session: AgentSession, turn: AgentTurn): AgentSession {
@@ -25,7 +30,7 @@ export function appendTurn(session: AgentSession, turn: AgentTurn): AgentSession
 }
 
 export function createAgentSession(conversationId: string, sessionId: string): AgentSession {
-  return { conversation: createConversationContext(conversationId, sessionId), history: [] };
+  return { conversation: createConversationContext(conversationId, sessionId), history: [], memory: createEmptyMemory() };
 }
 
 export interface AgentContext {

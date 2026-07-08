@@ -39,9 +39,6 @@ export function createGeminiStyleProvider(
     async complete(request: LLMCompletionRequest): Promise<LLMCompletionResult> {
       const start = Date.now();
       const url = `${baseUrl}/${model}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
-      // TEMPORARY [llm-debug] — key masked; remove once the Google AI
-      // routing issue is confirmed solved.
-      console.log(`[llm-debug] network request attempted: POST ${baseUrl}/${model}:generateContent?key=***MASKED***`);
       const response = await callWithTimeoutAndRetry(
         name,
         fetchImpl,
@@ -62,9 +59,6 @@ export function createGeminiStyleProvider(
         config.timeoutMs,
         config.maxRetries
       );
-
-      // TEMPORARY [llm-debug]
-      console.log(`[llm-debug] google response received: HTTP ${response.status} in ${Date.now() - start}ms`);
 
       const body = await response.json();
       const raw = body?.candidates?.[0]?.content?.parts?.[0]?.text;

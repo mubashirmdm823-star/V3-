@@ -12,7 +12,7 @@
 
 import type { Menu, MenuItem, RestaurantConfig } from "../../v2/types/menu";
 import type { CartState } from "../../v2/types/cart";
-import type { OrderContext, PendingClarificationContext } from "../../v2/types/order";
+import type { OrderContext } from "../../v2/types/order";
 import type { ParseResult } from "../../v2/types/parser";
 import { touch } from "../../v2/order-state-engine/context";
 import { getClarificationQueue, withClarificationQueue, pendingClarificationFromPlanAction } from "../../v2/order-state-engine/clarification";
@@ -26,13 +26,17 @@ import {
 } from "../../v2/order-state-engine/guards";
 import { nextStateAfterCartMutation } from "../../v2/order-state-engine/transitions";
 import { isValidAddressReply, extractCustomerName } from "../../v2/order-state-engine/customer-info";
-import { findCategoryForItemId, buildMenuVocabulary, resolveItemQuery, resolveItemQueryAmongItems } from "../../v2/intent-parser/matching";
+import { cancelOrder } from "../../v2/order-state-engine";
+import { findCategoryForItemId, buildMenuVocabulary } from "../../v2/intent-parser/matching";
 import { buildActionPlan, isAskClarificationAction } from "../../v2/action-planner";
 import { executeActionPlan } from "../../v2/cart-engine/action-plan";
-import { addItem, removeItem, replaceItem, setQuantity, clearCart } from "../../v2/cart-engine";
+import { removeItem, replaceItem, setQuantity, clearCart } from "../../v2/cart-engine";
 import { calculateTotal } from "../../v2/cart-engine/totals";
 import { findMenuItem } from "../../v2/cart-engine/validate";
 import type { CartAction, CheckoutAction, ItemMention } from "./schema";
+import type { ConversationMemory, PendingRemovalContext } from "./conversation-memory";
+import { resolveReference, resolveWithReferenceFallback } from "./reference-resolver";
+import { resolvePendingAdd, buildPendingRemoval, resolvePendingRemoval, isInCart } from "./clarification-engine";
 
 export interface CartLineFact {
   name: string;
@@ -52,7 +56,7 @@ export interface TurnFacts {
   // options, but the query names something for real elsewhere on the menu
   // — never silently added, never silently ignored either.
   clarificationRejected: { category: string; options: MenuItem[] } | null;
-  clarificationStillAmbiguous: { category: string } | null;
+  clarificationStillAmbiguous: { category: string; options: MenuItem[] } | null;
   // The chosen item's name plus every OTHER candidate name that could have
   // been meant this turn — Gemini drafted its reply before this resolution
   // happened, so it may have named the wrong one (the "Mexican Sandwich vs
@@ -62,6 +66,11 @@ export interface TurnFacts {
   newlyQueued: { category: string; quantity: number; options: MenuItem[] }[];
   checkoutRejected: { action: CheckoutAction["type"]; reason: string } | null;
   checkoutApplied: CheckoutAction["type"] | null;
+  // V3-only ambiguous-removal clarification (requirement #8) —
+  // `undefined` means "unchanged this turn", `null` means "resolved/cleared
+  // this turn", an object means "newly queued this turn". See
+  // conversation-memory.ts#PendingRemovalContext.
+  pendingRemoval?: PendingRemovalContext | null;
   cartBefore: CartState;
   cartAfter: CartState;
 }
@@ -83,10 +92,6 @@ function emptyFacts(cart: CartState): TurnFacts {
     cartBefore: cart,
     cartAfter: cart,
   };
-}
-
-function isInCart(cart: CartState, itemId: string): boolean {
-  return cart.items.some((line) => line.itemId === itemId);
 }
 
 function cartDiffLines(before: CartState, after: CartState): CartLineFact[] {
@@ -119,74 +124,23 @@ function categoryKeyForCandidates(candidateItemIds: string[] | undefined, menu: 
   return keys.size === 1 ? [...keys][0] : undefined;
 }
 
-// A single item mention while a clarification is pending is almost always
-// the customer answering it — resolved STRICTLY against pending.options
-// (never the whole menu, never any other category), mirroring the fixed
-// v2/order-state-engine/clarification.ts#resolveClarificationReply logic.
-function resolveAgainstPending(
-  context: OrderContext,
-  pending: PendingClarificationContext,
-  mention: ItemMention,
-  menu: Menu
-): { context: OrderContext; facts: Partial<TurnFacts> } | null {
-  const scoped = resolveItemQueryAmongItems(mention.query, pending.options);
-  const queue = getClarificationQueue(context);
-  const remaining = queue.slice(1);
-
-  if (scoped.length === 0) {
-    return {
-      context,
-      facts: { clarificationRejected: { category: pending.category, options: pending.options } },
-    };
-  }
-  if (scoped.length > 1) {
-    return { context, facts: { clarificationStillAmbiguous: { category: pending.category } } };
-  }
-
-  const chosenId = scoped[0];
-  const chosen = findMenuItem(menu, chosenId);
-  const quantity = mention.quantity ?? pending.quantity;
-  const result = addItem(context.cart, chosenId, menu, quantity);
-  if (!result.ok) return { context, facts: {} };
-
-  const nextState = remaining.length > 0 ? "AWAITING_CLARIFICATION" : nextStateAfterCartMutation(context.state);
-  const patched = touch(context, {
-    state: nextState,
-    cart: result.cart,
-    ...withClarificationQueue(remaining),
-    orderReviewShown: nextState === "ORDER_REVIEW" ? true : context.orderReviewShown,
-  });
-
-  // Gemini drafted its reply BEFORE this category-scoped resolution ran, so
-  // it may have named any of the query's OTHER menu-wide candidates (e.g.
-  // "mexican" also matches Mexican Sandwich/Mexican Pizza, not just the
-  // Pasta sibling actually chosen) — not just the other options THIS
-  // question happened to list. Compute rejects from the query's real
-  // menu-wide resolution, never from the pending category's siblings.
-  const vocabulary = buildMenuVocabulary(menu);
-  const globalCandidates = resolveItemQuery(mention.query, menu, vocabulary);
-  const rejectedIds = new Set([...globalCandidates, ...pending.options.map((o) => o.id)].filter((id) => id !== chosenId));
-  const rejectedNames = [...rejectedIds].map((id) => findMenuItem(menu, id)?.name).filter((n): n is string => Boolean(n));
-  return {
-    context: patched,
-    facts: {
-      resolvedAmbiguities: chosen ? [{ chosenName: chosen.name, rejectedNames }] : [],
-    },
-  };
-}
-
 // Fresh add(s) — no pending clarification answers this, or more than one
 // item was mentioned. Reuses V2's own Action Planner + Cart Engine
 // verbatim: every item is classified INDEPENDENTLY (exact -> add,
 // ambiguous -> queue a clarification, unavailable -> reject) rather than
 // one all-or-nothing verdict, and any NEW ambiguity is appended onto
 // whatever clarification queue already exists.
-function runFreshAdd(context: OrderContext, mentions: ItemMention[], menu: Menu): { context: OrderContext; facts: Partial<TurnFacts> } {
+function runFreshAdd(
+  context: OrderContext,
+  mentions: ItemMention[],
+  menu: Menu,
+  memory: ConversationMemory
+): { context: OrderContext; facts: Partial<TurnFacts> } {
   const vocabulary = buildMenuVocabulary(menu);
   const items: ParseResult["items"] = mentions.map((m) => ({
     query: m.query,
     quantity: m.quantity ?? 1,
-    candidateItemIds: resolveItemQuery(m.query, menu, vocabulary),
+    candidateItemIds: resolveWithReferenceFallback(m.query, menu, vocabulary, memory),
   }));
   const ambiguousItem = items.find((i) => (i.candidateItemIds?.length ?? 0) > 1);
   const category = ambiguousItem && (categoryKeyForCandidates(ambiguousItem.candidateItemIds, menu) ?? ambiguousItem.query);
@@ -229,39 +183,87 @@ function runFreshAdd(context: OrderContext, mentions: ItemMention[], menu: Menu)
   };
 }
 
-function runAdd(context: OrderContext, mentions: ItemMention[], menu: Menu): { context: OrderContext; facts: Partial<TurnFacts> } {
+function runAdd(
+  context: OrderContext,
+  mentions: ItemMention[],
+  menu: Menu,
+  memory: ConversationMemory
+): { context: OrderContext; facts: Partial<TurnFacts> } {
   const queue = getClarificationQueue(context);
   if (queue.length > 0 && mentions.length === 1) {
-    const result = resolveAgainstPending(context, queue[0], mentions[0], menu);
+    const result = resolvePendingAdd(context, queue[0], mentions[0], menu);
     if (result) return result;
   }
-  return runFreshAdd(context, mentions, menu);
+  return runFreshAdd(context, mentions, menu, memory);
 }
 
-function applyCartAction(context: OrderContext, action: CartAction, menu: Menu): { context: OrderContext; facts: Partial<TurnFacts> } {
+// "large kar do" / "medium kar do" / etc: regardless of which action shape
+// the model chose (add_item/replace_item/change_quantity), if its query
+// text is a recognized size-reference, normalize it into a proper
+// replace_item BEFORE the switch below runs — one rule, applied once,
+// rather than duplicating size-detection into every case.
+function normalizeSizeReference(action: CartAction, memory: ConversationMemory, menu: Menu): CartAction {
+  const query = action.type === "replace_item" ? action.toQuery : action.type === "add_item" ? action.query : action.type === "change_quantity" ? action.query : undefined;
+  if (!query) return action;
+  const ref = resolveReference(query, memory, menu);
+  return ref.kind === "size_replace" ? { type: "replace_item", fromQuery: ref.fromName, toQuery: ref.toName } : action;
+}
+
+function applyCartAction(
+  context: OrderContext,
+  rawAction: CartAction,
+  menu: Menu,
+  memory: ConversationMemory
+): { context: OrderContext; facts: Partial<TurnFacts> } {
+  const action = normalizeSizeReference(rawAction, memory, menu);
+
   switch (action.type) {
     case "add_item":
-      return runAdd(context, [{ query: action.query, quantity: action.quantity }], menu);
+      return runAdd(context, [{ query: action.query, quantity: action.quantity }], menu, memory);
 
     case "add_multiple_items":
-      return runAdd(context, action.items, menu);
+      return runAdd(context, action.items, menu, memory);
 
     case "remove_item": {
+      // V3-only ambiguous-removal lock (requirement #8): if a removal
+      // question is already pending, this reply is checked STRICTLY
+      // against those exact options first — never the whole cart/menu.
+      if (memory.pendingRemoval) {
+        const outcome = resolvePendingRemoval(memory.pendingRemoval, action.query);
+        if ("itemId" in outcome) {
+          const item = findMenuItem(menu, outcome.itemId);
+          const result = removeItem(context.cart, outcome.itemId);
+          if (result.ok) {
+            const nextState = nextStateAfterCartMutation(context.state);
+            const patched = touch(context, { state: nextState, cart: result.cart, orderReviewShown: nextState === "ORDER_REVIEW" ? true : context.orderReviewShown });
+            return { context: patched, facts: { removedNames: [item?.name ?? action.query], pendingRemoval: null } };
+          }
+        }
+        if ("ambiguous" in outcome) return { context, facts: {} };
+        // "notFound" — not an answer to the pending removal question; fall
+        // through and try resolving it as a brand-new request instead.
+      }
+
       const vocabulary = buildMenuVocabulary(menu);
-      const candidateIds = resolveItemQuery(action.query, menu, vocabulary).filter((id) => isInCart(context.cart, id));
+      const candidateIds = resolveWithReferenceFallback(action.query, menu, vocabulary, memory).filter((id) => isInCart(context.cart, id));
+      if (candidateIds.length > 1) {
+        // NEW (requirement #8): never silently no-op on an ambiguous
+        // removal — lock a real, cart-scoped option set and ask.
+        return { context, facts: { pendingRemoval: buildPendingRemoval(candidateIds, menu, action.query) } };
+      }
       if (candidateIds.length !== 1) return { context, facts: {} };
       const item = findMenuItem(menu, candidateIds[0]);
       const result = removeItem(context.cart, candidateIds[0]);
       if (!result.ok) return { context, facts: {} };
       const nextState = nextStateAfterCartMutation(context.state);
       const patched = touch(context, { state: nextState, cart: result.cart, orderReviewShown: nextState === "ORDER_REVIEW" ? true : context.orderReviewShown });
-      return { context: patched, facts: { removedNames: [item?.name ?? action.query] } };
+      return { context: patched, facts: { removedNames: [item?.name ?? action.query], pendingRemoval: memory.pendingRemoval ? null : undefined } };
     }
 
     case "replace_item": {
       const vocabulary = buildMenuVocabulary(menu);
-      const sourceIds = resolveItemQuery(action.fromQuery, menu, vocabulary).filter((id) => isInCart(context.cart, id));
-      const targetIds = resolveItemQuery(action.toQuery, menu, vocabulary);
+      const sourceIds = resolveWithReferenceFallback(action.fromQuery, menu, vocabulary, memory).filter((id) => isInCart(context.cart, id));
+      const targetIds = resolveWithReferenceFallback(action.toQuery, menu, vocabulary, memory);
       if (sourceIds.length !== 1 || targetIds.length !== 1) return { context, facts: {} };
       const fromItem = findMenuItem(menu, sourceIds[0]);
       const toItem = findMenuItem(menu, targetIds[0]);
@@ -277,7 +279,7 @@ function applyCartAction(context: OrderContext, action: CartAction, menu: Menu):
 
     case "change_quantity": {
       const vocabulary = buildMenuVocabulary(menu);
-      const candidateIds = resolveItemQuery(action.query, menu, vocabulary).filter((id) => isInCart(context.cart, id));
+      const candidateIds = resolveWithReferenceFallback(action.query, menu, vocabulary, memory).filter((id) => isInCart(context.cart, id));
       if (candidateIds.length !== 1) return { context, facts: {} };
       const item = findMenuItem(menu, candidateIds[0]);
       const result = setQuantity(context.cart, candidateIds[0], action.quantity);
@@ -289,7 +291,7 @@ function applyCartAction(context: OrderContext, action: CartAction, menu: Menu):
     case "clear_cart": {
       const result = clearCart(context.cart);
       const patched = touch(context, { state: "CART_EDITING", cart: result.cart, ...withClarificationQueue([]) });
-      return { context: patched, facts: { clearedCart: true } };
+      return { context: patched, facts: { clearedCart: true, pendingRemoval: null } };
     }
   }
 }
@@ -334,6 +336,15 @@ function applyCheckoutAction(context: OrderContext, action: CheckoutAction): { c
     }
     case "escalate_to_human":
       return { context, facts: { checkoutApplied: action.type } };
+
+    case "cancel_order": {
+      // Mirrors V2's own CANCEL_ORDER rule (v2/order-state-engine/index.ts):
+      // a bare cancel with nothing going on is a polite no-op, never a
+      // CANCELLED dead-end.
+      const somethingToCancel = context.cart.items.length > 0 || context.state !== "BROWSING";
+      if (!somethingToCancel) return { context, facts: { checkoutRejected: { action: action.type, reason: "nothing_to_cancel" } } };
+      return { context: cancelOrder(context), facts: { checkoutApplied: action.type } };
+    }
   }
 }
 
@@ -345,14 +356,15 @@ export function applyAgentActions(
   cartActions: CartAction[],
   checkoutAction: CheckoutAction | null,
   menu: Menu,
-  _restaurantConfig: RestaurantConfig
+  _restaurantConfig: RestaurantConfig,
+  memory: ConversationMemory
 ): { context: OrderContext; facts: TurnFacts } {
   const cartBefore = context.cart;
   let current = context;
   const facts = emptyFacts(cartBefore);
 
   for (const action of cartActions) {
-    const { context: next, facts: partial } = applyCartAction(current, action, menu);
+    const { context: next, facts: partial } = applyCartAction(current, action, menu, memory);
     current = next;
     // addedLines is recomputed from the real before/after cart diff below —
     // robust to multiple add/remove actions netting out in one turn.
@@ -361,6 +373,7 @@ export function applyAgentActions(
     if (partial.changedQuantity) facts.changedQuantity.push(...partial.changedQuantity);
     if (partial.clearedCart) facts.clearedCart = true;
     if (partial.unavailableQueries) facts.unavailableQueries.push(...partial.unavailableQueries);
+    if (partial.pendingRemoval !== undefined) facts.pendingRemoval = partial.pendingRemoval;
     if (partial.clarificationRejected) facts.clarificationRejected = partial.clarificationRejected;
     if (partial.clarificationStillAmbiguous) facts.clarificationStillAmbiguous = partial.clarificationStillAmbiguous;
     if (partial.resolvedAmbiguities) facts.resolvedAmbiguities.push(...partial.resolvedAmbiguities);

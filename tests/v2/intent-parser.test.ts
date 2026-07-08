@@ -283,3 +283,31 @@ test("parser never mutates the cart object passed in", () => {
   parseMessage("5 pasta", cart, menu);
   assert.deepEqual(cart, snapshot);
 });
+
+// ─── Regression: bare category word must resolve to EVERY item in that
+// category, not just the ones whose NAME literally contains the word ─────
+//
+// Live QA bug: "3 rice" only offered 4 of the 5 real Rice items (missing
+// "White Singaporean", whose name has no "rice" in it at all) because
+// resolveItemQuery's Step B (literal name-substring matching) found a
+// partial match and returned early, never reaching the category-title
+// fallback. A customer who then typed the missing item's FULL exact name
+// as the clarification answer got the WRONG item added (the answer
+// resolver only ever trusts the pending question's own option list).
+
+test("regression: 'rice' resolves to ALL 5 real Rice items, including ones whose name has no 'rice' in it", () => {
+  const r = parseMessage("3 rice", emptyCart, menu);
+  assert.equal(r.intent, "ADD_ITEM");
+  assert.equal(r.items[0].quantity, 3);
+  assert.deepEqual(
+    sorted(r.items[0].candidateItemIds),
+    sorted(["chicken-fried-rice", "vegetable-rice", "egg-rice", "singaporean-rice", "white-singaporean"])
+  );
+  assert.equal(r.safetyDecision, "ASK_CLARIFICATION");
+});
+
+test("regression: same general fix applies via the ADD path too — 'roll chahiye' (Wrap/Gyro, neither name contains 'roll')", () => {
+  const r = parseMessage("roll chahiye", emptyCart, menu);
+  assert.equal(r.intent, "ADD_ITEM");
+  assert.deepEqual(sorted(r.items[0]?.candidateItemIds), sorted(["wrap", "gyro"]));
+});

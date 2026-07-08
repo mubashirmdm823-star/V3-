@@ -18,6 +18,7 @@
 // server code path.
 
 import { getConfiguredEngineName } from "@/config/ai-engine";
+import { logger } from "@/lib/logger";
 import { v1Engine } from "./v1";
 import { v2Engine } from "./v2";
 import { v3Engine } from "./v3";
@@ -55,7 +56,7 @@ export async function processMessage(
   } catch (error) {
     // Log the failure — never let it surface to the customer, and never
     // let it crash the caller (UI or API route).
-    console.error(`[engine-router] "${requestedName}" engine failed:`, error);
+    logger.error(`[engine-router] "${requestedName}" engine failed:`, error);
 
     if (requestedName === "v2" || requestedName === "v3") {
       // Safe rollback: V2 or V3 throwing an unexpected error (something
@@ -77,7 +78,7 @@ export async function processMessage(
         const { debug: fallbackDebug, ...rest } = fallback;
         return fallbackDebug ? { ...rest, debug: { ...fallbackDebug, fallbackUsed: true } } : rest;
       } catch (fallbackError) {
-        console.error("[engine-router] V1 fallback also failed:", fallbackError);
+        logger.error("[engine-router] V1 fallback also failed:", fallbackError);
       }
     }
 

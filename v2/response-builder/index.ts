@@ -20,6 +20,7 @@ import {
   addSingleItemConfirmation,
   addMultipleItemsConfirmation,
   removeItemConfirmation,
+  removeMultipleItemsConfirmation,
   clearCartConfirmation,
   replaceItemConfirmation,
   changeQuantityConfirmation,
@@ -175,18 +176,49 @@ function cartGainedLines(before: CartState, after: CartState): { name: string; d
     .filter((entry) => entry.delta > 0);
 }
 
-// Diff-based "what actually landed" confirmation — used specifically for
-// the multi-action case (some items added, others still queued for
-// clarification), where parseResult.actions still describes the FULL
-// original request (including the parts that didn't resolve) rather than
-// just what the Action Planner actually added. Reading the real cart diff
-// instead is robust regardless of how many items were requested or how
-// many resolved.
+// Mirrors cartGainedLines for the opposite direction — a line whose
+// quantity dropped (including to zero, i.e. the line disappearing
+// entirely) is read from `before`, since `after` no longer has it to name.
+function cartLostLines(before: CartState, after: CartState): { name: string; delta: number }[] {
+  const afterQty = new Map(after.items.map((line) => [line.itemId, line.qty]));
+  return before.items
+    .map((line) => ({ name: line.name, delta: (afterQty.get(line.itemId) ?? 0) - line.qty }))
+    .filter((entry) => entry.delta < 0)
+    .map((entry) => ({ name: entry.name, delta: -entry.delta }));
+}
+
+// Diff-based "what actually changed" confirmation — used for the
+// multi-action case (this turn changed the cart AND still has a question
+// pending for a DIFFERENT item), where parseResult.actions still describes
+// the FULL original request (including parts that didn't resolve) rather
+// than just what actually happened. Reading the real cart diff instead is
+// robust regardless of how many items were requested or how many resolved.
+//
+// Originally only checked GAINED lines (added items) — a pure removal
+// (REMOVE_ITEM/CHANGE_QUANTITY-down) while a different clarification stayed
+// pending fell through to the generic "cart updated" confirmation without
+// ever naming what was removed (live QA bug: "vegetable rice remove kar kar
+// do" removed the item correctly but the reply said only "cart updated,"
+// never "Vegetable Rice"). Now checks every direction: exactly one item
+// gained AND exactly one lost reads as a replace (e.g. "gyro hata kar steak
+// add karo" while a different clarification is pending) and gets the same
+// replaceItemConfirmation phrasing used elsewhere in this file; a genuinely
+// mixed multi-item turn beyond that single-for-single shape still falls
+// back to the generic confirmation, since naming only part of a more
+// complex change would be its own kind of misleading.
 function buildAddedItemsSummary(before: CartState, after: CartState, menu: Menu): string {
   const gained = cartGainedLines(before, after);
-  if (gained.length === 0) return cartUpdatedConfirmation();
-  if (gained.length === 1) return addSingleItemConfirmation(gained[0].name, gained[0].delta);
-  return addMultipleItemsConfirmation();
+  const lost = cartLostLines(before, after);
+  if (gained.length === 1 && lost.length === 1) {
+    return replaceItemConfirmation(lost[0].name, gained[0].name);
+  }
+  if (gained.length > 0 && lost.length === 0) {
+    return gained.length === 1 ? addSingleItemConfirmation(gained[0].name, gained[0].delta) : addMultipleItemsConfirmation();
+  }
+  if (lost.length > 0 && gained.length === 0) {
+    return lost.length === 1 ? removeItemConfirmation(lost[0].name) : removeMultipleItemsConfirmation();
+  }
+  return cartUpdatedConfirmation();
 }
 
 function resolvedName(menu: Menu, itemId: string | undefined, fallback: string): string {

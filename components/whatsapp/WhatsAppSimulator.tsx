@@ -72,12 +72,7 @@ export function WhatsAppSimulator() {
     setIsTyping(true);
 
     setTimeout(async () => {
-      // TEMPORARY [llm-debug] — debug: true makes /api/chat include
-      // debug.activeEngine and debug.parserSource in its response (visible
-      // in the browser's Network tab). Remove alongside the other
-      // [llm-debug] logging once the Google AI routing issue is confirmed
-      // solved.
-      const result = await processMessage({ message: text, context: contextRef.current, debug: true });
+      const result = await processMessage({ message: text, context: contextRef.current });
       setIsTyping(false);
       addAI(result.reply);
       contextRef.current = result.context;

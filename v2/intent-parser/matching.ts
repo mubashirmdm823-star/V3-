@@ -123,6 +123,23 @@ export function resolveItemQuery(rawQuery: string, menu: Menu, vocabulary: Set<s
   });
   if (exact) return [exact.id];
 
+  // A query that IS (whole-string, singular/plural-tolerant) a menu
+  // category's own name always means "the whole category" — checked before
+  // Step B's literal substring matching below, which can otherwise silently
+  // return an INCOMPLETE subset when some category members' names don't
+  // literally contain the category word (e.g. "White Singaporean" has no
+  // "rice" in its name despite being a real Rice item; bare "rice" used to
+  // resolve to only 4 of the 5 real Rice items via Step B, so a clarification
+  // built from that missed the 5th item entirely — then a customer typing
+  // its FULL exact name as the answer had nothing to scope-match against).
+  // The SHOW/browse paths already got this exact fix via this same helper
+  // (see parser.ts's bare-category-browse and show+leftover branches); this
+  // closes the gap for every OTHER caller of resolveItemQuery, including the
+  // plain ADD_ITEM fallback, instead of requiring each call site to special-
+  // case it separately.
+  const wholeCategory = findCategoryByName(query, menu);
+  if (wholeCategory) return wholeCategory.items.map((i) => i.id);
+
   // Step A: the user typed something that fully contains one or more full
   // item names (e.g. "please give me zinger burger w/c meal") — the
   // *longest* contained name is the most specific/complete match.

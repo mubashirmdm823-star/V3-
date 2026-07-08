@@ -28,7 +28,21 @@ export type CheckoutAction =
   | { type: "select_pickup" }
   | { type: "save_address"; address: string }
   | { type: "save_customer_name"; name: string }
-  | { type: "escalate_to_human" };
+  | { type: "escalate_to_human" }
+  | { type: "cancel_order" };
+
+// Phase 2 — recommendation intelligence. The model classifies WHICH theme
+// the customer asked about (structural, not free text) so the backend
+// (recommendation-engine.ts) can look up REAL menu items for it — never
+// letting the model invent a suggestion itself. An unrecognized theme
+// string is treated as malformed (see validateRecommendationRequest), not
+// silently coerced, so a plan carrying garbage here still fails cleanly.
+export const RECOMMENDATION_THEMES = ["spicy", "mild", "popular", "kids", "vegetarian"] as const;
+export type RecommendationTheme = (typeof RECOMMENDATION_THEMES)[number];
+
+export interface RecommendationRequest {
+  theme: RecommendationTheme;
+}
 
 // The single combined LLM call's output shape — a reply AND every cart/
 // checkout action to apply, in one response, so a turn needs at most one
@@ -42,6 +56,9 @@ export interface AgentTurnPlan {
   cartActions: CartAction[];
   pendingClarifications: string[];
   checkoutAction: CheckoutAction | null;
+  // Optional — absent (older-shaped plans, every existing test fixture)
+  // means "no recommendation requested", same as an explicit null.
+  recommendationRequest: RecommendationRequest | null;
 }
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -109,6 +126,7 @@ function validateCheckoutAction(value: unknown): CheckoutAction | null | undefin
     case "select_delivery":
     case "select_pickup":
     case "escalate_to_human":
+    case "cancel_order":
       return { type: value.type };
     case "save_address": {
       const address = asTrimmedString(value.address);
@@ -121,6 +139,20 @@ function validateCheckoutAction(value: unknown): CheckoutAction | null | undefin
     default:
       return undefined;
   }
+}
+
+const RECOMMENDATION_THEME_SET: ReadonlySet<string> = new Set(RECOMMENDATION_THEMES);
+
+// Same null/undefined/malformed convention as validateCheckoutAction:
+// missing or explicit null both mean "nothing requested"; anything else
+// that isn't a recognized theme is malformed (invalidates the whole plan)
+// rather than silently defaulting to some guessed theme.
+function validateRecommendationRequest(value: unknown): RecommendationRequest | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (!isPlainObject(value)) return undefined;
+  return typeof value.theme === "string" && RECOMMENDATION_THEME_SET.has(value.theme)
+    ? { theme: value.theme as RecommendationTheme }
+    : undefined;
 }
 
 // A runaway plan (implausibly many actions) is never legitimate, but an
@@ -151,5 +183,8 @@ export function validateAgentTurnPlan(value: unknown): AgentTurnPlan | null {
   const checkoutAction = validateCheckoutAction(value.checkoutAction);
   if (checkoutAction === undefined) return null;
 
-  return { reply: value.reply, cartActions, pendingClarifications, checkoutAction };
+  const recommendationRequest = validateRecommendationRequest(value.recommendationRequest);
+  if (recommendationRequest === undefined) return null;
+
+  return { reply: value.reply, cartActions, pendingClarifications, checkoutAction, recommendationRequest };
 }

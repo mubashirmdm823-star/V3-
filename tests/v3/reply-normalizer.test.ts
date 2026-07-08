@@ -21,6 +21,8 @@ import {
   splitLongParagraphs,
   stripInternalLeakage,
   unwrapJsonOrFence,
+  containsInternalTerms,
+  stripInternalTerms,
 } from "../../v3/agent/reply-normalizer";
 
 // ─── Escaped newlines ────────────────────────────────────────────────────────
@@ -201,4 +203,32 @@ test("normalizer never changes the numeric amount, only the currency label/spaci
   const out = normalizeCurrency("Zinger Burger Rs.500, Jumbo Zinger Rs.750");
   assert.match(out, /PKR 500/);
   assert.match(out, /PKR 750/);
+});
+
+// ─── Hard blocklist — internal/implementation vocabulary (live bug fix) ────
+
+test("containsInternalTerms detects every required blocklisted word", () => {
+  const words = ["backend", "tool", "json", "provider", "gateway", "internal", "system", "debug", "V2", "V3", "engine"];
+  for (const word of words) {
+    assert.equal(containsInternalTerms(`Some reply mentioning ${word} here.`), true, `should flag "${word}"`);
+  }
+  assert.equal(containsInternalTerms("Ji, spicy options mein aap ye try kar sakte hain."), false);
+});
+
+test("stripInternalTerms removes the exact live-bug reply's leaked word", () => {
+  const out = stripInternalTerms("Backend aapko menu se spicy items dikha dega.");
+  assert.doesNotMatch(out, /backend/i);
+});
+
+test("full pipeline (normalizeReply) never lets ANY of the 11 required blocklisted words through", () => {
+  const words = ["backend", "tool", "json", "provider", "gateway", "internal", "system", "debug", "V2", "V3", "engine"];
+  for (const word of words) {
+    const out = normalizeReply(`Ji zaroor, ${word} aapko yeh dikhayega abhi.`);
+    for (const w of words) assert.doesNotMatch(out, new RegExp(`\\b${w}\\b`, "i"), `"${word}" case leaked "${w}"`);
+  }
+});
+
+test("full pipeline leaves an already-clean reply completely untouched", () => {
+  const clean = "Ji, spicy options mein aap ye try kar sakte hain:\n• Spicy Stuff Burger — PKR 700\n• Hot Shot 8 pcs with fries — PKR 800";
+  assert.equal(normalizeReply(clean), clean);
 });

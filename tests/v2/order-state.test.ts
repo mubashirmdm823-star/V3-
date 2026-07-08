@@ -292,6 +292,79 @@ test("clarification: checkout is BLOCKED while a clarification is pending, and t
   assert.equal(after.pendingClarification?.category, "pasta");
 });
 
+// ─── Regressions: live QA bugs, explicit new order vs. bare category answer
+
+test("regression: an explicit, unambiguous NEW order from a DIFFERENT category lands even while an unrelated clarification is pending, and the queue is preserved", () => {
+  // Live bug: 'bhai 3 Zinger Burger W/C add kar do' while 'which Pizza
+  // large?' was pending got rejected as 'not available in Pizza large'
+  // instead of adding the (exact, unambiguous, real) Zinger Burger W/C.
+  const withClarification = driveMany(createInitialContext(), ["3 Pizza Large 12 incch add krao pelase"]);
+  assert.equal(withClarification.state, "AWAITING_CLARIFICATION");
+  assert.equal(withClarification.pendingClarification?.category, "pizza large");
+
+  const { ctx: after } = say(withClarification, "bhai 3 Zinger Burger W/C add kar do");
+  assert.equal(after.state, "AWAITING_CLARIFICATION", "the pizza question must still be pending");
+  assert.equal(after.pendingClarification?.category, "pizza large");
+  assert.equal(after.cart.items.find((i) => i.itemId === "zinger-burger-w-c")?.qty, 3);
+});
+
+test("regression: same fix covers a spurious 2+-way scoped tie, not just a 0-match reject", () => {
+  // Live bug: 'i want 2 Mexican Pizza' while 'which Pizza large?' was
+  // pending silently re-asked the SAME question instead of adding Mexican
+  // Pizza — resolveItemQueryAmongItems's last-resort token-overlap tier
+  // scored BOTH pending options equally on the incidentally shared word
+  // "pizza", which used to read as "ambiguous_in_category."
+  const withClarification = driveMany(createInitialContext(), ["1 Pizza Large 12 inhc"]);
+  assert.equal(withClarification.state, "AWAITING_CLARIFICATION");
+
+  const { ctx: after } = say(withClarification, "i want 2 Mexican Pizza");
+  assert.equal(after.state, "AWAITING_CLARIFICATION", "the pizza-large question must still be pending");
+  assert.equal(after.cart.items.find((i) => i.itemId === "mexican-pizza")?.qty, 2);
+});
+
+test("regression: a BARE word with no explicit order verb is still correctly rejected as unavailable-in-category, even if it resolves unambiguously elsewhere", () => {
+  // Unaffected-behavior guard: 'club' alone (no add/want/kar do/chahiye)
+  // must NOT be treated as a new order just because it also happens to
+  // resolve unambiguously to Club Sandwich menu-wide — this is what keeps
+  // it reading as a (correctly rejected) attempt to answer the pending
+  // pasta question, per the pre-existing "rule 5" behavior.
+  const withClarification = driveMany(createInitialContext(), ["5 pasta"]);
+  const { ctx: after } = say(withClarification, "club");
+  assert.equal(after.state, "AWAITING_CLARIFICATION");
+  assert.equal(after.cart.items.length, 0);
+  assert.equal(after.pendingClarification?.category, "pasta");
+});
+
+test("regression: a pure REMOVE of an item unrelated to a still-pending clarification executes and preserves the queue", () => {
+  // Companion to the response-builder regression test — this file checks
+  // the STATE/cart side: the queue must survive a genuinely new remove.
+  const withClarification = driveMany(createInitialContext(), ["ek vegetable rice dedo", "5 pasta"]);
+  assert.equal(withClarification.state, "AWAITING_CLARIFICATION");
+  assert.equal(withClarification.cart.items.length, 1);
+
+  const { ctx: after } = say(withClarification, "vegetable rice remove kar do");
+  assert.equal(after.state, "AWAITING_CLARIFICATION", "the pasta question must still be pending");
+  assert.equal(after.cart.items.length, 0);
+  assert.equal(after.pendingClarification?.category, "pasta");
+});
+
+test("regression: 'White Singaporean' (full exact name) answering a bare '3 rice' clarification adds the exact right item, not a same-family lookalike", () => {
+  // Live bug chain: bare 'rice' used to miss 'White Singaporean' as a
+  // candidate entirely (see intent-parser regression test), so the
+  // clarification never offered it — a customer typing the exact full name
+  // as their answer then had nothing correct to scope-match against and
+  // got 'Singaporean Rice' (a same-family lookalike) instead.
+  const withClarification = driveMany(createInitialContext(), ["3 rice"]);
+  assert.equal(withClarification.pendingClarification?.options.length, 5);
+  assert.ok(withClarification.pendingClarification?.options.some((o) => o.id === "white-singaporean"));
+
+  const { ctx: after } = say(withClarification, "White Singaporean");
+  assert.equal(after.state, "CART_EDITING");
+  assert.equal(after.cart.items.length, 1);
+  assert.equal(after.cart.items[0].itemId, "white-singaporean");
+  assert.equal(after.cart.items[0].qty, 3);
+});
+
 // ─── 20. Edit cart during delivery/pickup stage ──────────────────────────────
 
 test("20. customer can edit cart during AWAITING_DELIVERY_PICKUP, bounces back to ORDER_REVIEW", () => {

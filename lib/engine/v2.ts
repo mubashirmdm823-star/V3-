@@ -58,17 +58,6 @@ export const v2Engine: AIEngine = {
     const conversation = resolveContext(request.context);
     const logger = new Logger(conversation.sessionId, conversation.conversationId);
 
-    // TEMPORARY [llm-debug] — remove once the Google AI routing issue is
-    // confirmed solved. Prints presence only, never secret values.
-    console.log(
-      "[llm-debug] v2 engine entered:",
-      JSON.stringify({
-        AI_ENGINE: process.env.AI_ENGINE ?? "(unset)",
-        LLM_PROVIDER: process.env.LLM_PROVIDER ?? "(unset)",
-        GOOGLE_API_KEY_present: Boolean(process.env.GOOGLE_API_KEY),
-      })
-    );
-
     const { result, conversation: nextConversation } = await processCustomerMessage({
       rawMessage: request.message,
       conversation,
@@ -76,9 +65,6 @@ export const v2Engine: AIEngine = {
       restaurantConfig,
       logger,
     });
-
-    // TEMPORARY [llm-debug]
-    console.log(`[llm-debug] final parserSource: ${result.parserSource}`);
 
     const debug = request.debug
       ? {

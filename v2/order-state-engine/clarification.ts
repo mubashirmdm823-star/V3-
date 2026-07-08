@@ -11,6 +11,7 @@ import type { OrderContext, PendingClarificationContext } from "../types/order";
 import type { AskClarificationPlanAction } from "../action-planner/types";
 import { findMenuItem } from "../cart-engine/validate";
 import { findCategoryForItemId, resolveItemQueryAmongItems } from "../intent-parser/matching";
+import { ORDER_VERB_PATTERN } from "../intent-parser/parser";
 
 // ─── Clarification Queue ─────────────────────────────────────────────────────
 //
@@ -168,6 +169,53 @@ export function resolveClarificationReply(
   if (parseResult.safetyDecision === "REJECT_UNAVAILABLE") return { kind: "not_an_answer" };
 
   const scopedResults = parseResult.items.map((ref) => resolveItemQueryAmongItems(ref.query, pending.options));
+
+  // A full, explicit, unambiguous NEW order ("bhai 3 Zinger Burger W/C add
+  // kar do", "i want 2 Mexican Pizza") must never be swallowed as a
+  // rejected answer (or a spurious re-ask) to an unrelated pending question
+  // just because it doesn't cleanly scope-match THIS category's options
+  // (live QA bugs: both were correctly parsed as an exact, single, real
+  // menu item, but got "not available in Pizza large" — or a silent re-ask
+  // of the SAME pizza question — instead of landing). Distinguishing
+  // signal: an explicit order verb (ORDER_VERB_PATTERN — the exact same
+  // signal that already turns a bare category name from browsing into
+  // ordering elsewhere in this parser) is present, AND every item the
+  // customer named is ALREADY a confident, single, real menu match at the
+  // menu-wide level (parseResult.items' own candidateItemIds, computed by
+  // the stateless parser before this function ever narrowed anything to
+  // `pending.options`). A bare, verb-less word like "club" that also
+  // happens to resolve unambiguously elsewhere on the menu is deliberately
+  // NOT covered by this check — the missing verb is what correctly keeps
+  // it reading as a (rejected) attempt to answer THIS question, not a new
+  // order (rule 5 still applies to that case).
+  const isExplicitUnambiguousNewOrder =
+    ORDER_VERB_PATTERN.test(parseResult.normalizedMessage) &&
+    parseResult.items.every((ref) => (ref.candidateItemIds?.length ?? 0) === 1);
+
+  // The explicit-new-order case wins over any scoped outcome that DISAGREES
+  // with the item's own confident whole-menu match — not just a zero-match
+  // ("outside the category entirely," e.g. "Zinger Burger W/C" vs a pending
+  // Pizza question — no shared tokens at all) or a spurious 2+-match tie
+  // (e.g. "Mexican Pizza" vs pending ["Pizza Large 12 inch", "Pizza Large
+  // Cheese Topping"] — both score equally on the incidentally-shared word
+  // "pizza"), but ALSO a spurious single-match tie that happens to point at
+  // the WRONG pending option (live QA bug: "2 Pizza Regular 9 inch add
+  // karo" while "which Pizza small?" was pending scored "Pizza Small 6
+  // inch" as a confident single match purely because it shares the tokens
+  // "pizza" AND "inch" with the query — and a length-1 scoped result looks
+  // identical in shape to a genuine correct answer unless it's checked
+  // against what the customer actually, confidently meant). Only a scoped
+  // result that resolves to EXACTLY the same id the stateless parser
+  // already confidently resolved menu-wide is trusted as a real answer to
+  // THIS question; any disagreement — 0, 2+, or a different single id —
+  // falls through as a genuinely new, independent cart edit instead of
+  // being force-fit into this unrelated clarification.
+  if (isExplicitUnambiguousNewOrder) {
+    const agreesWithConfidentMatch = parseResult.items.every(
+      (ref, i) => scopedResults[i].length === 1 && scopedResults[i][0] === ref.candidateItemIds![0]
+    );
+    if (!agreesWithConfidentMatch) return { kind: "not_an_answer" };
+  }
 
   // Any item in the reply that doesn't match ANY option this question
   // offered means the customer named something from outside the pending

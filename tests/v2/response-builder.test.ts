@@ -693,6 +693,33 @@ test("clarification: an unresolved follow-up re-asks the same options rather tha
   assert.match(reply, /Aap kaunsa Pasta chahenge\?/);
 });
 
+// ─── Regression: cart-change acknowledgment while a DIFFERENT clarification
+// stays pending must always name what actually happened, not just say
+// "cart updated" ─────────────────────────────────────────────────────────
+//
+// Live QA bug: "vegetable rice remove kar kar do" while a Pizza
+// clarification was still pending removed the item correctly, but the
+// reply's first line said only "Aapki cart update kar di gayi hai" — never
+// "Vegetable Rice" — because the confirmation builder for this specific
+// multi-action case only ever checked ADDED lines.
+
+test("regression: a pure remove while a different clarification is pending names the removed item, not a generic 'cart updated'", () => {
+  const ctx = driveMany(createInitialContext(), ["ek vegetable rice dedo", "5 pizza"]).ctx;
+  assert.equal(ctx.state, "AWAITING_CLARIFICATION");
+  const { reply } = say(ctx, "vegetable rice remove kar do");
+  assert.match(reply, /Vegetable Rice/);
+  assert.doesNotMatch(reply, /Aapki cart update kar di gayi hai/);
+  assert.match(reply, /Aap kaunsa Pizza chahenge\?/);
+});
+
+test("regression: a replace (remove+add in one turn) while a different clarification is pending names BOTH items", () => {
+  const ctx = driveMany(createInitialContext(), ["ek gyro dedo", "5 pasta"]).ctx;
+  assert.equal(ctx.state, "AWAITING_CLARIFICATION");
+  const { reply } = say(ctx, "gyro hata kar steak add karo");
+  assert.match(reply, /Chicken Steak/);
+  assert.match(reply, /Gyro/);
+});
+
 // ─── Additional formatting / determinism coverage ────────────────────────────
 
 test("formatting: restaurant info currency formatting matches the single approved format", () => {

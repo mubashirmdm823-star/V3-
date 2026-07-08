@@ -122,9 +122,11 @@ function worstDecision(decisions: SafetyDecision[]): SafetyDecision {
 // ─── Trigger detection ───────────────────────────────────────────────────────
 
 // Order-initiating verbs — their PRESENCE is what turns a bare category
-// name from "browsing" ("burger") into "ordering" ("burger add karo"). Used
-// only by the bare-category-browse check below.
-const ORDER_VERB_PATTERN =
+// name from "browsing" ("burger") into "ordering" ("burger add karo").
+// Exported for order-state-engine/clarification.ts, which reuses this exact
+// signal to distinguish a genuinely new, explicit order from a bare
+// attempt to answer a pending "which one?" question.
+export const ORDER_VERB_PATTERN =
   /\b(add|karo|kar\s*do|kardo|krdo|krado|dedo|de\s*do|dena|dijiye|chahiye|chahye|chaiye|want|order|mangwa\w*|laga\w*)\b/;
 
 // "Everything"/"whole thing" intensifiers — stripped alongside SHOW_WORDS

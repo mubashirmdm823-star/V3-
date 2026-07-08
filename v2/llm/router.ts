@@ -98,17 +98,8 @@ export async function routeMessage(params: RouteMessageParams): Promise<RouteMes
   // otherwise run on every single message even when there's no LLM to send
   // it to — the overwhelmingly common case in this repo today, where no
   // LLM_PROVIDER is configured anywhere.
-  // TEMPORARY [llm-debug] — remove once the Google AI routing issue is solved.
-  console.log("[llm-debug] LLM router called (routeMessage)");
   const config = safeLoadProviderConfigFromEnv(params.env ?? process.env);
-  console.log(
-    "[llm-debug] safeLoadProviderConfigFromEnv:",
-    config
-      ? JSON.stringify({ valid: true, provider: config.provider, model: config.model ?? "(default)", apiKeyPresent: Boolean(config.apiKey) })
-      : JSON.stringify({ valid: false })
-  );
   if (!config) {
-    console.log("[llm-debug] -> deterministic fallback triggered, reason: missing_config (no valid LLM_PROVIDER/API key in env)");
     const parseResult = parseMessage(params.rawMessage, params.cart, params.menu);
     return { parseResult, source: "deterministic", reason: "missing_config" };
   }
@@ -116,8 +107,6 @@ export async function routeMessage(params: RouteMessageParams): Promise<RouteMes
   const aiContext = buildLightweightAIContext(params);
   const request = buildPrompt(aiContext);
   const provider = createProvider(params.fetchImpl ? { ...config, fetchImpl: params.fetchImpl } : config);
-  // TEMPORARY [llm-debug]
-  console.log(`[llm-debug] provider selected: ${provider.name} (model: ${provider.model})`);
 
   const resolved = await completeWithFallback({
     provider,
@@ -129,13 +118,9 @@ export async function routeMessage(params: RouteMessageParams): Promise<RouteMes
   });
 
   if (resolved.source === "llm") {
-    // TEMPORARY [llm-debug]
-    console.log("[llm-debug] LLM response ACCEPTED — parserSource will be 'llm'");
     const parseResult = mapLLMResponseToParseResult(resolved.response, params.rawMessage, params.cart, params.menu);
     return { parseResult, source: "llm" };
   }
 
-  // TEMPORARY [llm-debug]
-  console.log(`[llm-debug] -> deterministic fallback triggered, reason: ${resolved.reason}`);
   return { parseResult: resolved.parseResult, source: "deterministic", reason: resolved.reason };
 }

@@ -16,6 +16,10 @@ export function removeItemConfirmation(name: string): string {
   return `${EMOJI.success} ${name} cart se remove kar diya gaya hai.`;
 }
 
+export function removeMultipleItemsConfirmation(): string {
+  return `${EMOJI.success} Aapke selected items cart se remove kar diye gaye hain.`;
+}
+
 export function clearCartConfirmation(): string {
   return `${EMOJI.success} Aapki cart clear kar di gayi hai.`;
 }

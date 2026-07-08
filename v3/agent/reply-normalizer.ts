@@ -210,6 +210,37 @@ export function stripInternalLeakage(text: string): string {
   return out;
 }
 
+// ─── 10. Hard blocklist — internal/implementation vocabulary ───────────────
+//
+// A distinct, LAST-RESORT safety net from stripInternalLeakage above: that
+// function strips STRUCTURAL leaks (real tool names, raw hyphenated ids,
+// JSON fragments) that only look like internals because of their shape.
+// This one blocks a fixed, explicit list of generic English words a model
+// can narrate in an otherwise perfectly well-formed sentence when it's
+// deflecting instead of answering ("Backend aapko menu se items dikha
+// dega.") — a real, live-observed failure mode. The specific bugs this was
+// written for (a themed-suggestion request or a general-availability
+// question the model answers with a lazy internal-sounding deflection
+// instead of real content) are fixed at the SOURCE by dedicated
+// fact-verifier.ts overrides that replace the whole reply outright — this
+// blocklist exists for whatever leaks through anyway, so no customer-facing
+// reply can ever contain these words, no matter which code path produced
+// it.
+const INTERNAL_TERM_WORDS = ["backend", "front[- ]?end", "tool", "json", "provider", "gateway", "internal", "system", "debug", "v2", "v3", "engine"];
+const INTERNAL_TERM_PATTERN = new RegExp(`\\b(${INTERNAL_TERM_WORDS.join("|")})\\b`, "gi");
+
+export function containsInternalTerms(text: string): boolean {
+  INTERNAL_TERM_PATTERN.lastIndex = 0;
+  return INTERNAL_TERM_PATTERN.test(text);
+}
+
+export function stripInternalTerms(text: string): string {
+  INTERNAL_TERM_PATTERN.lastIndex = 0;
+  let out = text.replace(INTERNAL_TERM_PATTERN, "");
+  out = out.replace(/ {2,}/g, " ").replace(/ ([,.!?])/g, "$1").replace(/,\s*,/g, ",");
+  return out;
+}
+
 // ─── Full pipeline ───────────────────────────────────────────────────────────
 
 export function normalizeReply(raw: string): string {
@@ -217,6 +248,7 @@ export function normalizeReply(raw: string): string {
   text = unescapeNewlines(text);
   text = collapseBlankLines(text);
   text = stripInternalLeakage(text);
+  text = stripInternalTerms(text);
   text = normalizeCurrency(text);
   text = limitEmojis(text, 2);
   text = normalizeBullets(text);

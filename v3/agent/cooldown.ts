@@ -28,4 +28,4 @@ export function resetCooldown(): void {
 // active — honest about the delay without ever exposing internal error/
 // debug details.
 export const COOLDOWN_BUSY_REPLY =
-  "System thora busy hai, lekin main aapka order safely continue kar sakta hoon. Meherbani karke item ka naam simple words mein likh dein.";
+  "Filhal thora busy hoon, lekin main aapka order safely continue kar sakta hoon. Meherbani karke item ka naam simple words mein likh dein.";

@@ -71,20 +71,9 @@ export async function completeWithFallback(params: CompleteWithFallbackParams): 
     outcome = validation.ok
       ? { ok: true, response: validation.response, latencyMs: result.latencyMs }
       : { ok: false, reason: validation.reason, details: validation.details };
-    // TEMPORARY [llm-debug] — remove once the Google AI routing issue is solved.
-    if (!validation.ok) {
-      console.log(
-        `[llm-debug] LLM responded but validation REJECTED it: reason=${validation.reason} details=${validation.details ?? "(none)"} rawPreview=${JSON.stringify(String(result.raw).slice(0, 120))}`
-      );
-    }
   } catch (error) {
     const reason: LLMFailureReason = error instanceof LLMTimeoutError ? "timeout" : "provider_error";
     outcome = { ok: false, reason, details: error instanceof Error ? error.message : String(error) };
-    // TEMPORARY [llm-debug] — LLMProviderError's message only ever contains
-    // provider name + HTTP status (never the key/body, by design).
-    console.log(
-      `[llm-debug] provider call THREW: reason=${reason} (timeout=${error instanceof LLMTimeoutError}) message=${error instanceof Error ? error.message : String(error)}`
-    );
   }
 
   if (outcome.ok && cache && isCacheableIntent(outcome.response.intent)) {
