@@ -32,13 +32,15 @@ import { correctReply } from "./correct-reply";
 import {
   verifyRecommendation,
   verifyRestaurantInfo,
-  verifyPendingRemoval,
-  verifyClarificationStillAmbiguous,
+  renderPendingRemovalIfApplicable,
+  renderStillAmbiguousIfApplicable,
   verifyCheckoutRejection,
   renderCategoryBrowseIfApplicable,
+  renderMenuIntroOnlyFallbackIfApplicable,
   renderThemeSuggestionIfApplicable,
   renderRestaurantInfoIfApplicable,
   renderTotalReplyIfApplicable,
+  renderCurrentOrderIfApplicable,
   isNoMoreItemsReply,
   renderNoMoreItemsReplyIfApplicable,
   renderClarificationPromptIfApplicable,
@@ -46,6 +48,7 @@ import {
   renderFinalSubmitReplyIfApplicable,
   renderPostOrderAckReply,
 } from "./fact-verifier";
+import { orchestrateReply } from "./reply-orchestrator";
 import { splitPlanIntents } from "./multi-intent";
 import { resolveCheckoutCapture, checkoutActionForCapture, buildCheckoutCaptureReply } from "./checkout-guard";
 import { updateMemoryAfterTurn } from "./conversation-memory";
@@ -257,47 +260,51 @@ export async function processAgentMessage(
     const sessionAfterActions: AgentSession = { conversation: nextConversation, history: session.history, memory: nextMemory };
 
     const corrected = correctReply(outcome.plan.reply, facts, menu);
-    // A confidently-detected category/full-menu browse request always wins
-    // (requirement #6, menu accuracy is safety-critical) — but never fires
-    // on a turn that already did something structural (cart edit, checkout,
-    // recommendation), so it can't clobber a legitimate reply.
-    //
-    // Deliberately reads the real outcome (`facts`), not the model's RAW
-    // cartActions/checkoutAction — a live bug showed the model can attach a
-    // spurious, unrelated cartAction (or the wrong checkoutAction) onto an
-    // otherwise pure "pizza menu dikhao"/"burgers dikhao" browse request;
-    // since that action either failed or never really applied, judging
-    // "structural" off the raw plan wrongly blocked the price-safe browse
-    // override and let a price-less LLM draft through instead.
+
+    // Whether a REAL cart mutation actually landed this turn (tier 6) —
+    // read from the real outcome (`facts`), never the model's raw
+    // cartActions, since a spurious/failed model cartAction attached to an
+    // otherwise pure request must never be mistaken for a real mutation.
     const cartActuallyChanged =
       facts.addedLines.length > 0 ||
       facts.removedNames.length > 0 ||
       facts.replacedNames.length > 0 ||
       facts.changedQuantity.length > 0 ||
       facts.clearedCart;
-    const hadStructuredAction = cartActuallyChanged || facts.checkoutApplied !== null || recommendation !== null;
-    // Phase 3, requirement #2: a total question NEVER gets a vague reply —
-    // checked first since it's the more specific ask when both patterns
-    // could theoretically fire.
-    const totalOverride = renderTotalReplyIfApplicable(message, nextConversation.order.cart, menu, hadStructuredAction);
-    const browseOverride = totalOverride ? null : renderCategoryBrowseIfApplicable(message, menu, hadStructuredAction);
-    // A pure "kahan hai"/"address"/"timing"/etc. question always wins over a
-    // themed-suggestion or menu-browse guess — checked next since it's the
-    // most specific of the three when more than one could theoretically
-    // match, mirroring totalOverride's own priority over browseOverride.
-    const restaurantInfoOverride =
-      totalOverride || browseOverride ? null : renderRestaurantInfoIfApplicable(message, restaurantConfig, hadStructuredAction);
-    // Fallback for when the model's OWN plan failed to classify a themed
-    // suggestion request (recommendation stays null) — never overrides a
-    // recommendation the model already resolved correctly.
-    const themeOverride =
-      recommendation || totalOverride || browseOverride || restaurantInfoOverride
-        ? null
-        : renderThemeSuggestionIfApplicable(message, menu, hadStructuredAction, session.memory.lastMentionedCategory);
-    const noMoreItemsOverride = renderNoMoreItemsReplyIfApplicable(message, nextConversation.order.cart, menu, hadStructuredAction);
+
+    // Every candidate below only ever answers "does THIS tier's own request
+    // shape match," nothing about precedence against any other tier — that
+    // is reply-orchestrator.ts's ONE job (see its header for the full
+    // numbered priority list this mirrors exactly). Root cause this
+    // replaces: these used to each carry their own ad-hoc
+    // `hadStructuredAction`/cross-tier gate, which is exactly how "kahan
+    // hai current order" and "order dikhao" regressed (restaurant-info's
+    // own self-check didn't know about order/cart requests; nothing at all
+    // verified a bare order-review request).
+    const totalOverride = renderTotalReplyIfApplicable(message, nextConversation.order.cart, menu);
+    const orderReviewOverride = renderCurrentOrderIfApplicable(message, nextConversation.order.cart, menu);
+    const noMoreItemsOverride = renderNoMoreItemsReplyIfApplicable(message, nextConversation.order.cart, menu);
+    const browseOverride = renderCategoryBrowseIfApplicable(message, menu);
+    const menuIntroOnlyOverride = renderMenuIntroOnlyFallbackIfApplicable(message, corrected, menu);
+    const restaurantInfoOverride = renderRestaurantInfoIfApplicable(message, restaurantConfig);
+    // Recommendation: the model's OWN classification (verified/price-
+    // corrected) is a confident, intentional signal — preserved above a
+    // same-turn cart mutation (see reply-orchestrator.ts's header) so
+    // "pasta hata do aur kuch spicy suggest karo" still shows the
+    // suggestion. The raw-text theme FALLBACK is a much weaker, bare
+    // keyword-match heuristic (only meant to catch a PURE recommendation
+    // question the model failed to classify at all, e.g. "hot and spicy ma
+    // kuch batao mujhe") — it must never outrank a real cart mutation this
+    // turn (a live regression: "ek zinger burger dedo, spicy chahiye"
+    // incidentally containing "spicy" must not bury the add confirmation),
+    // so it sits at its own, lower tier instead.
+    const recommendationOverride = recommendation ? verifyRecommendation(corrected, recommendation) : null;
+    const themeOverride = recommendation ? null : renderThemeSuggestionIfApplicable(message, menu, session.memory.lastMentionedCategory);
     // Phase 3C, requirement #1: a NEW whole-category ambiguity always shows
     // every real option, never a narrowed subset the model happened to ask.
     const clarificationOverride = renderClarificationPromptIfApplicable(facts.newlyQueued, menu);
+    const pendingRemovalOverride = renderPendingRemovalIfApplicable(facts.pendingRemoval);
+    const stillAmbiguousOverride = renderStillAmbiguousIfApplicable(facts.clarificationStillAmbiguous);
     // Phase 3C, requirement #3: checkout always opens with the full real
     // order review before ever asking delivery/pickup.
     const checkoutReviewOverride = renderCheckoutReviewIfApplicable(facts.checkoutApplied, nextConversation.order.cart, menu);
@@ -316,24 +323,42 @@ export async function processAgentMessage(
     // success for what was actually rejected. Only checked when
     // checkout-guard.ts didn't already produce a more specific reply.
     const rejectionOverride = !captureReply && facts.checkoutRejected ? verifyCheckoutRejection(corrected, facts.checkoutRejected) : null;
-    let factChecked =
-      postOrderAck?.reply ??
-      finalSubmitOverride ??
-      captureReply ??
-      deliverySelectionOverride ??
-      checkoutReviewOverride ??
-      clarificationOverride ??
-      noMoreItemsOverride ??
-      rejectionOverride ??
-      totalOverride ??
-      browseOverride ??
-      restaurantInfoOverride ??
-      themeOverride ??
-      corrected;
-    factChecked = verifyPendingRemoval(factChecked, facts.pendingRemoval);
-    factChecked = verifyClarificationStillAmbiguous(factChecked, facts.clarificationStillAmbiguous);
-    factChecked = verifyRecommendation(factChecked, recommendation);
-    factChecked = verifyRestaurantInfo(message, factChecked, restaurantConfig);
+
+    const orchestrated = orchestrateReply({
+      postOrderAckReply: postOrderAck?.reply ?? null,
+      finalSubmitOverride,
+      captureReply,
+      deliverySelectionOverride,
+      checkoutReviewOverride,
+      rejectionOverride,
+      orderReviewOverride,
+      noMoreItemsOverride,
+      totalOverride,
+      clarificationOverride,
+      pendingRemovalOverride,
+      stillAmbiguousOverride,
+      recommendationOverride,
+      cartActuallyChanged,
+      browseOverride,
+      menuIntroOnlyOverride,
+      themeOverride,
+      restaurantInfoOverride,
+      correctedDraft: corrected,
+    });
+    // Additive-only, never replacing (see verifyRestaurantInfo's own header)
+    // — appends a restaurant fact the customer also asked about, but ONLY
+    // when nothing more specific already won this turn (rule 3: restaurant
+    // info must never override — or even visually crowd — an order/cart/
+    // total/checkout/menu/recommendation reply; a live regression showed
+    // "kahan hai current order" appending the address after an otherwise-
+    // correct order review still reads as location intent partially
+    // winning). Every tier from post-order-ack through the theme fallback
+    // outranks this enrichment entirely; it only ever adds value on top of
+    // the restaurant-info tier itself or the general AI fallback.
+    const shouldEnrichWithRestaurantInfo = orchestrated.source === "restaurant_info" || orchestrated.source === "general_ai_reply";
+    const factChecked = shouldEnrichWithRestaurantInfo
+      ? verifyRestaurantInfo(message, orchestrated.reply, restaurantConfig)
+      : orchestrated.reply;
     const reply = normalizeReply(factChecked);
 
     if (reply.length > 0) {

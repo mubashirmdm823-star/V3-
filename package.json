@@ -7,14 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npm run test:ai-gateway && npm run test:v2 && npm run test:v3 && npm run test:qa && npm run test:think-food-ai",
+    "test": "npm run test:ai-gateway && npm run test:v2 && npm run test:v3 && npm run test:vercel && npm run test:qa && npm run test:think-food-ai",
     "test:think-food-ai": "tsx tests/think-food-ai/run-tests.ts",
     "test:qa": "tsx --test tests/qa/production-simulator.test.ts",
     "qa:simulate": "tsx qa/simulator.ts",
     "qa:replay": "tsx qa/replay.ts",
     "test:v2": "tsx --test tests/v2/safety-layer.test.ts tests/v2/confidence-layer.test.ts tests/v2/intent-parser.test.ts tests/v2/cart-engine.test.ts tests/v2/order-state.test.ts tests/v2/logger.test.ts tests/v2/response-builder.test.ts tests/v2/process-message.test.ts tests/v2/context-builder.test.ts tests/v2/llm.test.ts tests/v2/llm-pipeline.test.ts tests/v2/api-chat.test.ts tests/v2/ui-switch.test.ts tests/v2/qa-fixes.test.ts tests/v2/conversation-layer.test.ts tests/v2/action-planner.test.ts tests/v2/v1-audit.test.ts",
-    "test:v3": "tsx --test tests/v3/agent.test.ts tests/v3/reply-normalizer.test.ts tests/v3/phase2-conversation-intelligence.test.ts tests/v3/phase3-behaviour-polish.test.ts tests/v3/phase3b-checkout-hardening.test.ts tests/v3/phase3c-staff-flow-rules.test.ts tests/v3/phase4-live-acceptance.test.ts tests/v3/phase5-reply-safety.test.ts tests/v3/phase6-menu-price-formatting.test.ts",
+    "test:v3": "tsx --test tests/v3/agent.test.ts tests/v3/reply-normalizer.test.ts tests/v3/phase2-conversation-intelligence.test.ts tests/v3/phase3-behaviour-polish.test.ts tests/v3/phase3b-checkout-hardening.test.ts tests/v3/phase3c-staff-flow-rules.test.ts tests/v3/phase4-live-acceptance.test.ts tests/v3/phase5-reply-safety.test.ts tests/v3/phase6-menu-price-formatting.test.ts tests/v3/phase7-menu-intro-only-fix.test.ts tests/v3/phase8-reply-orchestrator.test.ts",
     "test:ai-gateway": "tsx --test tests/ai-gateway/ai-gateway.test.ts tests/ai-gateway/diagnostics.test.ts",
+    "test:vercel": "tsx --test tests/vercel/production-runtime.test.ts",
     "test:e2e": "tsx --test tests/e2e/v3-behaviors.test.ts"
   },
   "dependencies": {

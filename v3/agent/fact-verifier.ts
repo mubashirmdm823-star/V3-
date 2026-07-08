@@ -80,31 +80,40 @@ function renderThemeSuggestion(theme: RecommendationTheme, menu: Menu, categoryH
 }
 
 // Only fires when the model's OWN plan produced no recommendation this turn
-// (recommendation === null) — never overrides a request the model already
-// classified and resolved correctly — and never on a turn that already did
-// something structural (cart edit/checkout), same non-clobbering rule as
-// every other override in this file.
-export function renderThemeSuggestionIfApplicable(
-  customerMessage: string,
-  menu: Menu,
-  hadStructuredAction: boolean,
-  categoryHint: string | undefined
-): string | null {
-  if (hadStructuredAction) return null;
+// (recommendation === null, checked by the caller) — never overrides a
+// request the model already classified and resolved correctly. Precedence
+// against every other tier (never firing on a turn that already did
+// something structural, never beating a higher-priority order/total/menu
+// request) is now the reply-orchestrator's job (see reply-orchestrator.ts)
+// — this function only ever answers "does the raw text look like a themed
+// suggestion request," nothing else.
+export function renderThemeSuggestionIfApplicable(customerMessage: string, menu: Menu, categoryHint: string | undefined): string | null {
   const match = THEME_PATTERNS.find((t) => t.pattern.test(customerMessage));
   return match ? renderThemeSuggestion(match.theme, menu, categoryHint) : null;
 }
 
 // ─── Category-browse verification ───────────────────────────────────────────
 
-const FULL_MENU_PATTERN = /\b(full|poora|pura|sara|complete|puri)\s*menu\b|\bmenu\b\s*(dikhao|dikha\s*do|batao)?\s*$/i;
+// Originally anchored to end-of-string with only a narrow set of allowed
+// trailing words ("menu\s*(dikhao|dikha do|batao)?\s*$") — any OTHER
+// trailing filler ("menu please", "show menu please", "menu yaar") broke
+// the `$` anchor entirely, so the message matched neither this nor the
+// outer gate's full-menu branch and fell through to the model's own
+// (sometimes intro-only) draft. Simplified to a bare "menu" word check: by
+// the time this is reached, the outer gate already required a listing/
+// availability signal AND no specific CATEGORY_KEYWORD matched, so any
+// remaining mention of the word "menu" at all safely means "show
+// everything," regardless of what comes before or after it.
+const FULL_MENU_PATTERN = /\bmenu\b/i;
 // "kya kya"/"kia kia" is an Urdu/Roman-Urdu reduplication idiom meaning
 // "what all" — "kia" is a very common alternate spelling of "kya" that the
 // original pattern didn't recognize at all (live bug: "or kia kia available
 // hai hamre pass" matched neither this gate nor FULL_MENU_PATTERN below,
 // so it fell through to the model's own free-form draft with nothing to
-// keep it honest).
-const GENERAL_AVAILABILITY_PATTERN = /\b(?:kya|kia)\s*(?:kya|kia)\b/i;
+// keep it honest). Also covers a single (non-reduplicated) "kya"/"kia"
+// paired with "available" ("kya available hai") — the same generic "what
+// do you have" question without the reduplication idiom.
+const GENERAL_AVAILABILITY_PATTERN = /\b(?:kya|kia)\s*(?:kya|kia)\b|\b(?:kya|kia)\b\s*available\b|\bavailable\b\s*(?:kya|kia)\b/i;
 // "chahiye"/"chahye"/"chaiye" ("I want") paired with a bare category name
 // and nothing else specific ("mujhe pasta chahiye") is a genuine live gap:
 // the model sometimes answers this conversationally instead of emitting any
@@ -150,14 +159,11 @@ function renderFullMenu(menu: Menu): string {
 // rather than trying to verify arbitrary free-text item listings after the
 // fact. Returns null (leave the model's reply alone) whenever this isn't
 // confidently a pure browse request, so it never fires on an order
-// ("burger add karo"), a price question, or anything already handled by a
-// cart/checkout/recommendation action this turn.
-export function renderCategoryBrowseIfApplicable(
-  customerMessage: string,
-  menu: Menu,
-  hadCartOrCheckoutOrRecommendation: boolean
-): string | null {
-  if (hadCartOrCheckoutOrRecommendation) return null;
+// ("burger add karo") or a price question. Precedence against cart/
+// checkout/order-review/recommendation is the reply-orchestrator's job
+// (see reply-orchestrator.ts) — this function only ever answers "does the
+// raw text look like a menu/category browse request."
+export function renderCategoryBrowseIfApplicable(customerMessage: string, menu: Menu): string | null {
   if (!LISTING_INTENT_PATTERN.test(customerMessage) && !GENERAL_AVAILABILITY_PATTERN.test(customerMessage)) return null;
 
   // A specific category word always wins over a bare "menu" mention
@@ -175,6 +181,41 @@ export function renderCategoryBrowseIfApplicable(
   // blank/empty-content reply from the model ("Hamare paas poora menu yeh
   // hai:" with nothing listed after it).
   return FULL_MENU_PATTERN.test(customerMessage) || GENERAL_AVAILABILITY_PATTERN.test(customerMessage) ? renderFullMenu(menu) : null;
+}
+
+// ─── Menu intro-only fallback (last-resort safety net) ─────────────────────
+//
+// Live bug: "Menu please" got "Sure, here's our full menu for you!" — an
+// intro line with ZERO actual items. renderCategoryBrowseIfApplicable above
+// already covers every phrasing this project has found so far, but the
+// customer can always phrase a menu request in some way that pattern hasn't
+// been taught yet — and a model that talks ABOUT showing the menu without
+// actually listing it is a distinct failure mode from "didn't recognize
+// this as a menu request" at all. This is the backstop for exactly that:
+// if the (already fact-checked) draft reply mentions "menu" anywhere but
+// contains not a single real, priced item line, the model is treated as
+// having failed to deliver menu content — replaced outright with the real,
+// fully-priced menu, never trusting the model's own claim that it showed
+// one. Precedence against every higher tier is the reply-orchestrator's
+// job (see reply-orchestrator.ts) — EXCEPT one thing this function must
+// still decide for itself: it inspects the DRAFT REPLY text, not the
+// customer's own message, so a completely unrelated question (a live
+// regression: "kahan hai" — pure location, nothing menu-related about it
+// at all) whose model draft happens to hallucinate the word "menu" while
+// deflecting must never be mistaken for a failed menu request. Guarded by
+// requiring the customer's OWN message not already be a restaurant-info
+// ask (INFO_TOPICS, defined below) — a genuinely untaught menu phrasing
+// ("hey what do you guys offer around here") never matches an info topic,
+// so this backstop still fires for exactly the cases it was built for.
+function hasAnyPricedItemLine(text: string): boolean {
+  return text.split("\n").some((line) => line.trim().startsWith("•") && /PKR\s*\d+/.test(line));
+}
+
+export function renderMenuIntroOnlyFallbackIfApplicable(customerMessage: string, reply: string, menu: Menu): string | null {
+  if (!/\bmenu\b/i.test(reply)) return null;
+  if (hasAnyPricedItemLine(reply)) return null;
+  if (INFO_TOPICS.some((topic) => topic.pattern.test(customerMessage))) return null;
+  return renderFullMenu(menu);
 }
 
 // ─── Total-query verification (Phase 3, requirement #2) ────────────────────
@@ -201,13 +242,33 @@ function renderCartTotal(cart: CartState, menu: Menu): string {
   return `${lines}\n\nTotal: PKR ${subtotal}`;
 }
 
-// Same non-clobbering rule as category browse: only overrides a turn that
-// did nothing structural (no cart edit/checkout/recommendation), so it
-// never fights with a legitimate "added X, your total is now Y" reply.
-export function renderTotalReplyIfApplicable(customerMessage: string, cart: CartState, menu: Menu, hadStructuredAction: boolean): string | null {
-  if (hadStructuredAction) return null;
+// Precedence against a legitimate "added X, your total is now Y" cart-
+// mutation reply (and everything else) is the reply-orchestrator's job —
+// this only ever answers "is this a total/bill question," nothing else.
+export function renderTotalReplyIfApplicable(customerMessage: string, cart: CartState, menu: Menu): string | null {
   if (!TOTAL_QUERY_PATTERN.test(customerMessage)) return null;
   return renderCartTotal(cart, menu);
+}
+
+// ─── Current-order / cart-review request (reply-orchestrator tier 3) ──────
+//
+// Live bug: "order dikhao" got "Aapka current order yeh hai:" with the
+// items and total simply never following it — nothing in this file
+// deterministically verified a bare "show me my order/cart" request at
+// all, so a model that drafted only the intro sentence (never actually
+// listing anything) passed straight through unmodified. Same "backend
+// facts override the LLM's narration" posture as every other override
+// here: detects the request straight from the customer's raw text and
+// renders the REAL itemized cart + total (or a friendly empty-cart
+// message), never trusting the model's own claim that it already showed
+// the order.
+const ORDER_REVIEW_PATTERN =
+  /\b(order|cart)\b[\s\S]{0,20}\b(dikhao|dikha\s*do|dikha\s*den|batao|bata\s*do|show)\b|\b(dikhao|dikha\s*do|dikha\s*den|batao|bata\s*do|show)\b[\s\S]{0,20}\b(order|cart)\b|\bcurrent\s*order\b|\bmera\s*order\b|\bmy\s*order\b|\bkya\s*(order|cart)\s*hai\b|\b(order|cart)\s*kya\s*hai\b/i;
+
+export function renderCurrentOrderIfApplicable(customerMessage: string, cart: CartState, menu: Menu): string | null {
+  if (!ORDER_REVIEW_PATTERN.test(customerMessage)) return null;
+  if (cart.items.length === 0) return EMPTY_CART_TOTAL_REPLY;
+  return `Aapka current order yeh hai:\n${renderOrderItemsBlock(cart, menu)}`;
 }
 
 // ─── Ambiguous-removal verification (Phase 3, requirement #5) ──────────────
@@ -217,9 +278,11 @@ export function renderTotalReplyIfApplicable(customerMessage: string, cart: Cart
 // the model drafted its reply BEFORE that was known, so it may have
 // falsely claimed something was removed. The definitively-known "still
 // need to ask which one" fact always wins, same posture as correct-reply.ts's
-// correctClarificationOutcome/correctUnavailable.
-export function verifyPendingRemoval(reply: string, pendingRemoval: PendingRemovalContext | null | undefined): string {
-  if (!pendingRemoval) return reply;
+// correctClarificationOutcome/correctUnavailable. Returns null (rather than
+// the original reply) when not applicable, so the reply-orchestrator can
+// treat this as a normal tier candidate.
+export function renderPendingRemovalIfApplicable(pendingRemoval: PendingRemovalContext | null | undefined): string | null {
+  if (!pendingRemoval) return null;
   const options = pendingRemoval.options.map((o) => o.name).join(", ");
   return `Aapke cart mein ${pendingRemoval.options.length} items match karte hain: ${options}. Kaunsa hata dein?`;
 }
@@ -231,10 +294,11 @@ export function verifyPendingRemoval(reply: string, pendingRemoval: PendingRemov
 // (e.g. it matches 2+ of the exact options this question offered) means
 // nothing was added this turn — but the model drafted its reply before
 // that was known and may have falsely claimed success (the live-acceptance
-// run caught this exact case). Same posture as verifyPendingRemoval above:
-// the definitively-known "still need to ask" fact always wins.
-export function verifyClarificationStillAmbiguous(reply: string, stillAmbiguous: { category: string; options: MenuItem[] } | null): string {
-  if (!stillAmbiguous) return reply;
+// run caught this exact case). Same posture as renderPendingRemovalIfApplicable
+// above: the definitively-known "still need to ask" fact always wins, and
+// null (not the original reply) signals "not applicable" to the orchestrator.
+export function renderStillAmbiguousIfApplicable(stillAmbiguous: { category: string; options: MenuItem[] } | null): string | null {
+  if (!stillAmbiguous) return null;
   const options = stillAmbiguous.options.map((o) => o.name).join(", ");
   return `Yeh abhi bhi clear nahi hai. Meherbani karke in mein se poora naam batayein: ${options}.`;
 }
@@ -321,8 +385,7 @@ export function isNoMoreItemsReply(customerMessage: string): boolean {
   return NO_MORE_ITEMS_REPLIES.has(customerMessage.trim().toLowerCase());
 }
 
-export function renderNoMoreItemsReplyIfApplicable(customerMessage: string, cart: CartState, menu: Menu, hadStructuredAction: boolean): string | null {
-  if (hadStructuredAction) return null;
+export function renderNoMoreItemsReplyIfApplicable(customerMessage: string, cart: CartState, menu: Menu): string | null {
   if (cart.items.length === 0) return null;
   if (!isNoMoreItemsReply(customerMessage)) return null;
   return `Theek hai. Aapka current order ye hai:\n${renderOrderItemsBlock(cart, menu)}\n\nAgar order proceed karna hai to 'checkout' likh dein.`;
@@ -413,20 +476,6 @@ export function verifyRestaurantInfo(customerMessage: string, reply: string, res
   return missing.length > 0 ? `${reply}\n\n${missing.join("\n")}` : reply;
 }
 
-// A message that ALSO looks like a menu/category/full-menu/total request —
-// used below to decide whether an info question is a "pure" ask (safe to
-// fully replace the model's draft) or combined with something else (left to
-// the additive-only verifyRestaurantInfo above, which never removes
-// anything the model already said).
-function looksLikeMenuOrOrderRequest(message: string): boolean {
-  return (
-    LISTING_INTENT_PATTERN.test(message) ||
-    GENERAL_AVAILABILITY_PATTERN.test(message) ||
-    CATEGORY_KEYWORDS.some((c) => c.pattern.test(message)) ||
-    TOTAL_QUERY_PATTERN.test(message)
-  );
-}
-
 // ─── Restaurant-info REPLACING override (live bug fix) ─────────────────────
 //
 // verifyRestaurantInfo above is additive-only by design (so it never
@@ -435,19 +484,18 @@ function looksLikeMenuOrOrderRequest(message: string): boolean {
 // question, nothing else going on), the model answered with a stray,
 // contentless "poora menu yeh hai:" line — completely unrelated to the
 // question — and the additive check only appended the real address AFTER
-// that wrong sentence, never replacing it. When the message is confidently
-// a pure info-only ask (matches an info topic and does NOT also look like a
-// menu/category/total request) and nothing structural happened this turn,
-// the model's entire draft is discarded in favor of the real fact(s) alone
+// that wrong sentence, never replacing it. Replaces the model's entire
+// draft with the real fact(s) whenever the message matches an info topic
 // — same "backend facts override the LLM's narration" posture as every
-// other override in this file.
-export function renderRestaurantInfoIfApplicable(
-  customerMessage: string,
-  restaurantConfig: RestaurantConfig,
-  hadStructuredAction: boolean
-): string | null {
-  if (hadStructuredAction) return null;
-  if (looksLikeMenuOrOrderRequest(customerMessage)) return null;
+// other override in this file. Used to also self-check that the message
+// didn't ALSO look like a menu/order/total request (a `looksLikeMenuOrOrderRequest`
+// helper) before firing — that responsibility now belongs entirely to the
+// reply-orchestrator's tier ordering (restaurant info is deliberately the
+// LOWEST-priority replacing override, tier 9 of 10, so "kahan hai current
+// order" is decided by the order-review tier before this one is ever
+// consulted), which is a single, testable, one-place rule instead of this
+// function re-deriving "is this message also something else" itself.
+export function renderRestaurantInfoIfApplicable(customerMessage: string, restaurantConfig: RestaurantConfig): string | null {
   const lines = INFO_TOPICS.filter((topic) => topic.pattern.test(customerMessage))
     .map((topic) => topic.check("", restaurantConfig))
     .filter((line): line is string => Boolean(line));

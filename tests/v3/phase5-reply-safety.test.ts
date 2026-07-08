@@ -112,7 +112,7 @@ test("2. the spicy suggestion reply names only real spicy menu items", async () 
 });
 
 test("renderThemeSuggestionIfApplicable resolves 'spicy' straight from raw text, independent of the model's own classification", () => {
-  const reply = renderThemeSuggestionIfApplicable("hot and spicy ma kuch batao mujhe", menu, false, undefined);
+  const reply = renderThemeSuggestionIfApplicable("hot and spicy ma kuch batao mujhe", menu, undefined);
   assert.ok(reply, "expected a deterministic spicy suggestion");
   assert.match(reply!, /PKR/);
   assert.doesNotMatch(reply!, /backend/i);
@@ -159,7 +159,7 @@ test("3. 'or kia kia available hai hamre pass' includes real menu/category conte
 });
 
 test("renderCategoryBrowseIfApplicable recognizes 'kia kia' (alternate spelling of 'kya kya') as a full-menu request", () => {
-  const reply = renderCategoryBrowseIfApplicable("or kia kia available hai hamre pass", menu, false);
+  const reply = renderCategoryBrowseIfApplicable("or kia kia available hai hamre pass", menu);
   assert.ok(reply, "expected the full menu to render");
   assert.match(reply!, /•/);
 });
@@ -167,7 +167,7 @@ test("renderCategoryBrowseIfApplicable recognizes 'kia kia' (alternate spelling 
 test("6. no blank menu heading ever ships without menu content, across every full-menu phrasing", () => {
   const phrasings = ["kya kya available hai", "kia kia available hai", "poora menu dikhao", "full menu batao", "menu"];
   for (const message of phrasings) {
-    const reply = renderCategoryBrowseIfApplicable(message, menu, false);
+    const reply = renderCategoryBrowseIfApplicable(message, menu);
     assert.ok(reply, `expected menu content for "${message}"`);
     assert.match(reply!, /•/, `"${message}" produced a heading with no items`);
   }
@@ -183,14 +183,15 @@ test("4. 'kahan hai' returns the restaurant address only, never menu content", a
 });
 
 test("renderRestaurantInfoIfApplicable replaces (not appends to) a pure info-only question", () => {
-  const reply = renderRestaurantInfoIfApplicable("kahan hai", restaurantConfig, false);
+  const reply = renderRestaurantInfoIfApplicable("kahan hai", restaurantConfig);
   assert.equal(reply, `Address: ${restaurantConfig.address}`);
 });
 
-test("renderRestaurantInfoIfApplicable never fires on a combined menu+info ask, leaving it to the additive-only checker", () => {
-  const reply = renderRestaurantInfoIfApplicable("menu dikhao aur yeh bhi batao aap kahan hain", restaurantConfig, false);
-  assert.equal(reply, null);
-});
+// Precedence for a combined menu+info ask (or an order+info ask) is no
+// longer this function's own job — it's the reply-orchestrator's (tier 7
+// menu / tier 3 order-review both outrank tier 9 restaurant-info by
+// position in the pipeline, not by this function refusing to fire). See
+// reply-orchestrator.test.ts for the end-to-end proof.
 
 test("restaurant-info override never fires on a turn that already did something structural", async () => {
   const result = await drive(
