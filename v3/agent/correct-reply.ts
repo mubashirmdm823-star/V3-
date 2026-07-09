@@ -112,41 +112,52 @@ function correctIncompleteOrderClaim(reply: string, facts: TurnFacts, menu: Menu
   return `Aapka current order yeh hai:\n${lines}\n\nTotal: PKR ${realSubtotal(facts.cartAfter, menu)}`;
 }
 
-// Production Stabilization Mode, multi-variant clarification resolution:
-// when a customer's single answer resolves 2+ SIBLING variants of the
-// same originally-ambiguous item together (e.g. "dono flavour 3 kardo" —
-// both flavors, 3 each — resolving BOTH Chicken Chowmein and Vegetable
-// Chowmein from the same pending Noodles question; see actions.ts's
-// applyAgentActions grouping fix for how both mentions land together),
-// Gemini's own drafted wording is unreliable — a live bug showed it
-// literally name the same variant twice ("3 Vegetable Chowmein aur 3
-// Vegetable Chowmein"). Detected purely from the EXISTING
-// facts.resolvedAmbiguities (no new fact needed): 2+ entries are MUTUAL
-// siblings when each one's chosenName appears in the OTHER's
-// rejectedNames — meaning they came from resolving the SAME pending
-// option set together, never two independent, unrelated resolutions (e.g.
-// "5 pasta ek chowmein" -> "small chicken" resolves two DIFFERENT
-// categories in the same turn — never mutual siblings, so that
-// already-working scenario is untouched). Always replaces the whole reply
-// with the real, backend-verified current cart — the definitively-known
-// facts always win over a guessed wording, same posture as every other
-// correction in this file.
-function isMultiVariantSiblingResolution(resolvedAmbiguities: TurnFacts["resolvedAmbiguities"]): boolean {
-  if (resolvedAmbiguities.length < 2) return false;
-  return resolvedAmbiguities.some((a, i) =>
-    resolvedAmbiguities.some((b, j) => i !== j && a.rejectedNames.includes(b.chosenName) && b.rejectedNames.includes(a.chosenName))
-  );
-}
-
-function renderMultiVariantResolutionSummary(cart: TurnFacts["cartAfter"], menu: Menu): string {
+// Production Stabilization Mode, cart-update reply fix: Gemini drafts its
+// reply BEFORE the backend actually applies the cart mutation, so it can
+// say something no longer true by the time the customer sees it — from
+// naming the wrong sibling variant when 2+ queued clarifications resolve
+// together (a live bug showed the same variant named twice, "3 Vegetable
+// Chowmein aur 3 Vegetable Chowmein") to premature/in-progress wording
+// ("... add kar raha hoon") for an item that is already, definitively
+// added (another live bug: "ek pasta kardo" -> "mexican" replied "Mexican
+// Pasta white sauce add kar raha hoon" instead of the real, priced cart —
+// note this specific case never even touches the formal
+// AWAITING_CLARIFICATION queue: the model resolved the earlier
+// spoken-only question and drafted an already-specific add_item query in
+// one step, so facts.resolvedAmbiguities is empty here and only
+// facts.addedLines — the real cart diff, populated for every successful
+// add regardless of how it happened — proves it). Always replaces the
+// whole reply with the real, backend-verified current cart — the
+// definitively-known facts always win over a guessed wording, same posture
+// as every other correction in this file.
+function renderCartUpdateSummary(cart: TurnFacts["cartAfter"], menu: Menu): string {
   const lines = cart.items.map((line) => `• ${line.name} ×${line.qty} — PKR ${line.price * line.qty}`).join("\n");
   const total = realSubtotal(cart, menu);
   return `Cart update ho gaya.\n\nAapka current cart:\n${lines}\n\nTotal: PKR ${total}\n\nKya aap kuch aur add karna chahenge ya checkout karna hai?`;
 }
 
-function correctMultiVariantResolution(reply: string, facts: TurnFacts, menu: Menu): string {
-  if (!isMultiVariantSiblingResolution(facts.resolvedAmbiguities)) return reply;
-  return renderMultiVariantResolutionSummary(facts.cartAfter, menu);
+// Case 1: a pending clarification ("which pasta?"/"which zinger?") was
+// resolved and applied this turn — detected from the EXISTING
+// facts.resolvedAmbiguities (no new fact needed), non-empty whether the
+// answer resolved a single item ("mexican") or several at once ("dono
+// flavour 3 kardo", "5 pasta ek chowmein").
+function correctClarificationResolution(reply: string, facts: TurnFacts, menu: Menu): string {
+  if (facts.resolvedAmbiguities.length === 0) return reply;
+  return renderCartUpdateSummary(facts.cartAfter, menu);
+}
+
+// Case 2: the draft literally claims an add is still IN PROGRESS ("add kar
+// raha hoon" / "add karwa raha hoon") while facts.addedLines proves the
+// backend already, definitively completed it this turn — the narrow,
+// literal phrasing the rule targets, never a general "always summarize the
+// cart after any add" rule (that would rewrite every ordinary, already-
+// accurate past-tense add confirmation elsewhere in this codebase).
+const PREMATURE_ADD_CLAIM_PATTERN = /\badd\s*kar(?:wa)?\s*raha\s*h(?:oon|un)\b/i;
+
+function correctPrematureAddClaim(reply: string, facts: TurnFacts, menu: Menu): string {
+  if (facts.addedLines.length === 0) return reply;
+  if (!PREMATURE_ADD_CLAIM_PATTERN.test(reply)) return reply;
+  return renderCartUpdateSummary(facts.cartAfter, menu);
 }
 
 // Production Stabilization Mode, rule #4 (checkout mutation lock): if
@@ -168,7 +179,8 @@ export function correctReply(reply: string, facts: TurnFacts, menu: Menu): strin
   out = correctUnavailable(out, facts);
   out = correctFalseCheckoutConfirmation(out, facts);
   out = correctIncompleteOrderClaim(out, facts, menu);
-  out = correctMultiVariantResolution(out, facts, menu);
+  out = correctClarificationResolution(out, facts, menu);
+  out = correctPrematureAddClaim(out, facts, menu);
   out = correctCartMutationBlocked(out, facts);
   return out;
 }

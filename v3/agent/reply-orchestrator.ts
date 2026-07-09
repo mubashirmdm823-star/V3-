@@ -31,6 +31,10 @@
 //   1. Post-order / PENDING_VERIFICATION acknowledgment
 //   2. Checkout: final submit > capture (name/address) > delivery-selection
 //      > order review (start_checkout) > rejection
+//   2b. Hypothetical/conditional order question ("agar ... to?") — a
+//      definitively-known fact (nothing was mutated this turn, see
+//      index.ts) that must win over whatever the model drafted, same
+//      "backend facts override the reply" posture as every checkout tier.
 //   3. Order review / current cart requests (+ "no more items")
 //   4. Total/bill requests
 //   5. Clarification: newly-queued ADD ambiguity > newly-queued REMOVE
@@ -71,6 +75,8 @@ export interface ReplyOrchestratorInput {
   deliverySelectionOverride: string | null;
   checkoutReviewOverride: string | null;
   rejectionOverride: string | null;
+  // Tier 2b — hypothetical/conditional order question
+  hypotheticalOrderOverride: string | null;
   // Tier 3 — order review / current cart
   orderReviewOverride: string | null;
   noMoreItemsOverride: string | null;
@@ -121,6 +127,7 @@ export function orchestrateReply(input: ReplyOrchestratorInput): OrchestratedRep
     { name: "checkout_delivery_selection", value: input.deliverySelectionOverride },
     { name: "checkout_review", value: input.checkoutReviewOverride },
     { name: "checkout_rejection", value: input.rejectionOverride },
+    { name: "hypothetical_order_question", value: input.hypotheticalOrderOverride },
     { name: "order_review", value: input.orderReviewOverride },
     { name: "no_more_items", value: input.noMoreItemsOverride },
     { name: "total", value: input.totalOverride },

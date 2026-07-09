@@ -459,6 +459,49 @@ export function isReadyForCheckoutSignal(customerMessage: string): boolean {
   return READY_FOR_CHECKOUT_PATTERN.test(customerMessage);
 }
 
+// Production Stabilization Mode fix: the customer explicitly typing the
+// literal word the assistant itself told them to type ("checkout") must
+// NEVER be left to the model's own (unreliable) classification — a live
+// bug showed the model occasionally drafting confirm_order instead of
+// start_checkout for a bare "checkout" while still in CART_EDITING
+// (confirm_order requires ORDER_REVIEW, so canStartCheckout/canConfirmOrder
+// correctly rejected it, and the customer saw "Yeh abhi possible nahi hai").
+// Same deterministic-override precedent as READY_FOR_CHECKOUT_PATTERN above
+// — this is the more literal, more common trigger word itself.
+const CHECKOUT_TRIGGER_PATTERN = /\bcheckout\b|\bplace\s*order\b|\border\s*place\b/i;
+
+export function isExplicitCheckoutTrigger(customerMessage: string): boolean {
+  return CHECKOUT_TRIGGER_PATTERN.test(customerMessage);
+}
+
+// ─── Hypothetical/conditional order questions ──────────────────────────────
+//
+// "agar mujhe ek Club Sandwich bhi add karwana hua to?" is a QUESTION about
+// whether adding something is still possible — not a request to add it.
+// Question != Order, Interest != Cart Mutation (Production Stabilization
+// Mode business rules). Detected structurally (a Roman Urdu/Hindi "agar ...
+// to" conditional clause, phrased as a question) rather than a menu-item
+// keyword list, so it applies no matter which item (if any) the model
+// itself resolved from the sentence — "never infer intent beyond the exact
+// message; when uncertain, ask instead of assuming."
+const HYPOTHETICAL_QUESTION_PATTERN = /\bagar\b[\s\S]*\bto\b\s*\??\s*$/i;
+
+export function isHypotheticalOrderQuestion(customerMessage: string): boolean {
+  const trimmed = customerMessage.trim();
+  if (!trimmed.endsWith("?")) return false;
+  return HYPOTHETICAL_QUESTION_PATTERN.test(trimmed);
+}
+
+export function renderHypotheticalOrderReplyIfApplicable(customerMessage: string): string | null {
+  if (!isHypotheticalOrderQuestion(customerMessage)) return null;
+  return [
+    "Ji bilkul.",
+    "Jab tak order final confirm nahi hota tab tak aap apne order mein changes ya naye items add kar sakte hain.",
+    'Agar add karwana ho to bas likh dein, jaise: "item ka naam add kar dein."',
+    "Aur agar order final hai to checkout continue karte hain.",
+  ].join("\n\n");
+}
+
 // ─── Checkout-start verification (Phase 3C, requirement #3) ───────────────
 //
 // Checkout must ALWAYS open with the full, real order review before ever

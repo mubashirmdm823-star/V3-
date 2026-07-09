@@ -19,6 +19,7 @@
 
 import type { Menu } from "../../v2/types/menu";
 import type { OrderContext, OrderState } from "../../v2/types/order";
+import { touch } from "../../v2/order-state-engine/context";
 import { isValidAddressReply, extractCustomerName } from "../../v2/order-state-engine/customer-info";
 import { renderOrderItemsBlock } from "./fact-verifier";
 import type { CheckoutAction } from "./schema";
@@ -92,6 +93,26 @@ export function resolveAddressCapture(rawMessage: string): boolean {
   return isValidAddressReply(rawMessage);
 }
 
+// Checkout correction: the customer answered delivery/pickup one step ago
+// and is now correcting THAT choice mid name/address capture ("sorry
+// Delivery" while being asked for a name after picking pickup) — not
+// answering the name/address question at all. Whitelisted to the exact
+// correction phrasing (optionally prefixed with "sorry"/"actually"/"nahi"),
+// same deliberately-narrow shape as WAIT_WORDS above, so an unrelated reply
+// that merely contains "delivery"/"pickup" elsewhere in a longer sentence
+// is never misread as a correction.
+const FULFILLMENT_CORRECTION_PREFIX = /^(?:sorry|actually|nahi)\s+/i;
+
+function isDeliveryCorrection(rawMessage: string): boolean {
+  const stripped = rawMessage.trim().toLowerCase().replace(FULFILLMENT_CORRECTION_PREFIX, "");
+  return stripped === "delivery" || stripped === "home delivery";
+}
+
+function isPickupCorrection(rawMessage: string): boolean {
+  const stripped = rawMessage.trim().toLowerCase().replace(FULFILLMENT_CORRECTION_PREFIX, "");
+  return stripped === "pickup" || stripped === "pick up";
+}
+
 export type CheckoutCaptureOutcome =
   // Not a capture state, or the model picked a globally-legitimate action
   // (escalate/cancel) — nothing here overrides it.
@@ -100,7 +121,11 @@ export type CheckoutCaptureOutcome =
   | { kind: "save_address"; address: string }
   | { kind: "wait" }
   | { kind: "invalid_name" }
-  | { kind: "invalid_address" };
+  | { kind: "invalid_address" }
+  // Customer is correcting the delivery/pickup choice made a step earlier —
+  // see isDeliveryCorrection/isPickupCorrection above.
+  | { kind: "switch_to_delivery" }
+  | { kind: "switch_to_pickup" };
 
 // The single decision point: given the state we were ALREADY in before
 // this message, and the customer's raw text, what should actually happen —
@@ -112,15 +137,22 @@ export function resolveCheckoutCapture(state: OrderState, rawMessage: string, mo
   if (isWaitMessage(rawMessage)) return { kind: "wait" };
 
   if (state === "AWAITING_NAME") {
+    if (isDeliveryCorrection(rawMessage)) return { kind: "switch_to_delivery" };
     const name = resolveNameCapture(rawMessage);
     return name ? { kind: "save_name", name } : { kind: "invalid_name" };
   }
 
+  if (isPickupCorrection(rawMessage)) return { kind: "switch_to_pickup" };
   return resolveAddressCapture(rawMessage) ? { kind: "save_address", address: rawMessage.trim() } : { kind: "invalid_address" };
 }
 
 // The concrete CheckoutAction to actually apply this turn — null means
-// "apply nothing" (wait/invalid), so the state genuinely doesn't change.
+// "apply nothing through the normal checkout dispatch" (wait/invalid, or a
+// fulfillment-method switch, which applyFulfillmentCorrection below applies
+// directly instead — canSelectDeliveryPickup only permits select_delivery/
+// select_pickup from AWAITING_DELIVERY_PICKUP, not from mid name/address
+// capture, so this correction is never a legitimate select_delivery/
+// select_pickup CheckoutAction).
 export function checkoutActionForCapture(capture: CheckoutCaptureOutcome, modelAction: CheckoutAction | null): CheckoutAction | null {
   switch (capture.kind) {
     case "pass_through":
@@ -132,8 +164,27 @@ export function checkoutActionForCapture(capture: CheckoutCaptureOutcome, modelA
     case "wait":
     case "invalid_name":
     case "invalid_address":
+    case "switch_to_delivery":
+    case "switch_to_pickup":
       return null;
   }
+}
+
+// Applies a fulfillment-method correction directly to the OrderContext —
+// bounces AWAITING_NAME (pickup) back to AWAITING_ADDRESS (delivery) or
+// AWAITING_ADDRESS (delivery) back to AWAITING_NAME (pickup). Cart is never
+// touched (these two states are already cart-mutation-locked — see
+// isCartMutationLocked above), and this never restarts checkout: only
+// deliveryType/state (and the now-irrelevant address, cleared when
+// switching to pickup) change.
+export function applyFulfillmentCorrection(context: OrderContext, capture: CheckoutCaptureOutcome): OrderContext {
+  if (capture.kind === "switch_to_delivery") {
+    return touch(context, { state: "AWAITING_ADDRESS", deliveryType: "delivery" });
+  }
+  if (capture.kind === "switch_to_pickup") {
+    return touch(context, { state: "AWAITING_NAME", deliveryType: "pickup", address: undefined });
+  }
+  return context;
 }
 
 // Phase 3C, requirement #4: after the name is saved, the customer must see
@@ -175,5 +226,9 @@ export function buildCheckoutCaptureReply(capture: CheckoutCaptureOutcome, appli
       return applied ? renderFinalReview(capture.name, context, menu) : "Naam save nahi ho saka — pehle delivery ya pickup select karein.";
     case "save_address":
       return applied ? "Shukriya! Aapka address save ho gaya hai. Ab meherbani karke apna naam batayein." : "Address save nahi ho saka, meherbani karke dobara koshish karein.";
+    case "switch_to_delivery":
+      return "Theek hai, delivery. Meherbani karke apna complete delivery address bhej dein.";
+    case "switch_to_pickup":
+      return "Theek hai, pickup. Meherbani karke apna naam batayein.";
   }
 }

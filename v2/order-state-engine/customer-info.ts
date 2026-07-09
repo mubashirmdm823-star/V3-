@@ -25,7 +25,10 @@ export function isValidAddressReply(rawMessage: string): boolean {
 }
 
 const NAME_PATTERNS: RegExp[] = [
-  /mera naam\s+(.+?)\s+hai\b/i,
+  // "hai"/"he" are both common Roman Urdu spellings of the same verb ("is") —
+  // "mera naam Fahad Mughal he" is as valid as "...hai". "naam"/"name" are
+  // likewise interchangeable in Roman Urdu/Hinglish ("mera name Ali hai").
+  /mera\s+(?:naam|name)\s+(.+?)\s+(?:hai|he)\b/i,
   /my name is\s+(.+)/i,
   /main\s+(.+?)\s+hun\b/i,
   /^naam[:\s]+(.+)/i,

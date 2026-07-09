@@ -223,6 +223,7 @@ function baseOrchestratorInput(): ReplyOrchestratorInput {
     deliverySelectionOverride: null,
     checkoutReviewOverride: null,
     rejectionOverride: null,
+    hypotheticalOrderOverride: null,
     orderReviewOverride: null,
     noMoreItemsOverride: null,
     totalOverride: null,

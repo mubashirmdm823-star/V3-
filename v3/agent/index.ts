@@ -44,6 +44,9 @@ import {
   isNoMoreItemsReply,
   renderNoMoreItemsReplyIfApplicable,
   isReadyForCheckoutSignal,
+  isExplicitCheckoutTrigger,
+  isHypotheticalOrderQuestion,
+  renderHypotheticalOrderReplyIfApplicable,
   renderClarificationPromptIfApplicable,
   renderCheckoutReviewIfApplicable,
   renderFinalSubmitReplyIfApplicable,
@@ -51,7 +54,7 @@ import {
 } from "./fact-verifier";
 import { orchestrateReply } from "./reply-orchestrator";
 import { splitPlanIntents } from "./multi-intent";
-import { resolveCheckoutCapture, checkoutActionForCapture, buildCheckoutCaptureReply } from "./checkout-guard";
+import { resolveCheckoutCapture, checkoutActionForCapture, buildCheckoutCaptureReply, applyFulfillmentCorrection } from "./checkout-guard";
 import { updateMemoryAfterTurn } from "./conversation-memory";
 import { normalizeReply } from "./reply-normalizer";
 import { isCooldownActive, recordRateLimitHit, COOLDOWN_BUSY_REPLY } from "./cooldown";
@@ -203,6 +206,32 @@ export async function processAgentMessage(
       checkoutAction = { type: "start_checkout" };
     }
 
+    // Production Stabilization Mode fix: the customer typing the literal
+    // word the assistant itself invited ("checkout") must always start
+    // checkout, never left to the model's own occasionally-wrong action
+    // choice (e.g. drafting confirm_order while still CART_EDITING — see
+    // fact-verifier.ts#isExplicitCheckoutTrigger). Same capture/
+    // clarification exclusion as the two overrides above; harmless if the
+    // real state can't actually start checkout (applyCheckoutAction's own
+    // canStartCheckout guard still rejects honestly in that case).
+    const explicitCheckoutTriggerThisTurn = !isCaptureOrClarificationState && !readyForCheckoutThisTurn && isExplicitCheckoutTrigger(message);
+    if (explicitCheckoutTriggerThisTurn) {
+      cartActions = [];
+      checkoutAction = { type: "start_checkout" };
+    }
+
+    // Production Stabilization Mode fix: "agar mujhe X add karwana hua to?"
+    // is a QUESTION about whether adding is still possible, never a request
+    // to add it — Question != Order (see fact-verifier.ts#
+    // isHypotheticalOrderQuestion). The model can misclassify this as a
+    // real add_item, which would otherwise execute for real while in
+    // ORDER_REVIEW (deliberately not cart-mutation-locked, so genuine edits
+    // there still work) — stripped before applyAgentActions ever sees it.
+    const hypotheticalOrderQuestionThisTurn = isHypotheticalOrderQuestion(message);
+    if (hypotheticalOrderQuestionThisTurn) {
+      cartActions = [];
+    }
+
     // Phase 3C, requirement #4: the customer often answers "delivery ya
     // pickup?" in the SAME message that would otherwise just confirm the
     // order review, or names it a turn early (still ORDER_REVIEW, one
@@ -233,6 +262,15 @@ export async function processAgentMessage(
       session.memory,
       message
     );
+
+    // Phase 3B correction (checkout-guard.ts): the customer is correcting
+    // the delivery/pickup choice made a step earlier, not answering the
+    // name/address question — applied directly, since canSelectDeliveryPickup
+    // never permits a select_delivery/select_pickup CheckoutAction from
+    // AWAITING_NAME/AWAITING_ADDRESS through the normal dispatch above.
+    if (capture.kind === "switch_to_delivery" || capture.kind === "switch_to_pickup") {
+      nextOrderContext = applyFulfillmentCorrection(nextOrderContext, capture);
+    }
 
     // Combine the two existing, unchanged V2 transitions
     // (confirm_order then select_delivery/pickup) into this one customer
@@ -338,6 +376,11 @@ export async function processAgentMessage(
     // success for what was actually rejected. Only checked when
     // checkout-guard.ts didn't already produce a more specific reply.
     const rejectionOverride = !captureReply && facts.checkoutRejected ? verifyCheckoutRejection(corrected, facts.checkoutRejected) : null;
+    // Question != Order: a hypothetical/conditional order question never
+    // mutates the cart (already stripped above) — the reply must say so
+    // honestly rather than trust whatever the model drafted for the add it
+    // wrongly assumed would happen.
+    const hypotheticalOrderOverride = renderHypotheticalOrderReplyIfApplicable(message);
 
     const orchestrated = orchestrateReply({
       postOrderAckReply: postOrderAck?.reply ?? null,
@@ -346,6 +389,7 @@ export async function processAgentMessage(
       deliverySelectionOverride,
       checkoutReviewOverride,
       rejectionOverride,
+      hypotheticalOrderOverride,
       orderReviewOverride,
       noMoreItemsOverride,
       totalOverride,
