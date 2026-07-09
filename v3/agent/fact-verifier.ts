@@ -16,6 +16,7 @@ import { recommendItems } from "./recommendation-engine";
 import type { RecommendationOutcome } from "./multi-intent";
 import type { PendingRemovalContext } from "./conversation-memory";
 import type { CheckoutAction, RecommendationTheme } from "./schema";
+import { formatMenuLine } from "./rules";
 
 // Shared by every renderer below that needs an itemized cart + real total —
 // one formatting rule so "current order" always looks the same everywhere
@@ -47,7 +48,7 @@ export function verifyRecommendation(reply: string, recommendation: Recommendati
   );
   if (allNamedWithPrice) return reply;
 
-  const lines = recommendation.items.map((item) => `• ${item.name} — PKR ${item.price}`).join("\n");
+  const lines = recommendation.items.map((item) => formatMenuLine(item.name, item.price)).join("\n");
   return `Aap yeh try kar sakte hain:\n${lines}`;
 }
 
@@ -63,6 +64,10 @@ export function verifyRecommendation(reply: string, recommendation: Recommendati
 // the model's own structured classification missed it, replace the whole
 // reply with the real, menu-verified suggestion outright — never trust the
 // model's free-form deflection to already contain real content.
+// TODO: see v3/agent/rules.ts's RECOMMENDATION_WORDS/RECOMMENDATION_RULE —
+// "kuch spicy"/"hot and spicy" and "kids ke liye" map to the spicy/kids
+// entries below; the generic trigger words (suggest/recommend/batao/kuch
+// acha) are deliberately NOT wired in here (see rules.ts for why).
 const THEME_PATTERNS: { pattern: RegExp; theme: RecommendationTheme }[] = [
   { pattern: /\bspicy\b|\bhot\s*(and|aur|&)\s*spicy\b|\bteekha\b|\btikha\b|\bchatpata\b/i, theme: "spicy" },
   { pattern: /\bmild\b|\bhalka\b|\bkam\s*teekha\b|\bkam\s*tikha\b|\bnot\s*spicy\b/i, theme: "mild" },
@@ -75,7 +80,7 @@ function renderThemeSuggestion(theme: RecommendationTheme, menu: Menu, categoryH
   let items = recommendItems(menu, theme, categoryHint);
   if (items.length === 0) items = recommendItems(menu, theme);
   if (items.length === 0) return null;
-  const lines = items.map((item) => `• ${item.name} — PKR ${item.price}`).join("\n");
+  const lines = items.map((item) => formatMenuLine(item.name, item.price)).join("\n");
   return `Ji, ${theme} options mein aap ye try kar sakte hain:\n${lines}\n\nIn mein se koi add karna ho to naam bata dein.`;
 }
 
@@ -144,7 +149,7 @@ const CATEGORY_KEYWORDS: { pattern: RegExp; key: string }[] = [
 ];
 
 function renderCategory(category: MenuCategory): string {
-  const lines = category.items.map((item) => `• ${item.name} — PKR ${item.price}`).join("\n");
+  const lines = category.items.map((item) => formatMenuLine(item.name, item.price)).join("\n");
   return `${category.title}:\n${lines}`;
 }
 
@@ -211,7 +216,49 @@ function hasAnyPricedItemLine(text: string): boolean {
   return text.split("\n").some((line) => line.trim().startsWith("•") && /PKR\s*\d+/.test(line));
 }
 
+// Production Stabilization Mode fix: a bare greeting ("hi"/"hello") isn't
+// an INFO_TOPICS ask either, so the guard above alone let a model draft
+// that politely offers to show the menu ("Hi! ... Hamara menu dekhna
+// chahenge?") wrongly replace the ENTIRE greeting with the full priced
+// menu — the customer never asked for it at all. Exact, case-insensitive
+// match to the WHOLE trimmed message (same convention as
+// isBareAcknowledgment/isNoMoreItemsReply elsewhere in this file) — never a
+// substring, so "hi, menu dikhao" is unaffected and still gets the menu.
+// Deliberately narrower than requiring the full listing-intent vocabulary:
+// this backstop's whole purpose is catching menu phrasings that vocabulary
+// hasn't been taught yet ("hey what do you guys offer around here" — see
+// the still-passing test for exactly this case), so only greetings
+// specifically are excluded, not every non-menu-shaped message.
+const GREETING_PATTERN = /^(hi|hello|hey|hy|salam|assalam\s*o\s*alaikum|asalam\s*o\s*alaikum|aoa)$/i;
+
+// Production Stabilization Mode fix: a customer message that explicitly
+// asks to ADD a specific named item ("ek dragon roll add karo") is
+// categorically never itself a "show me the menu" request — live testing
+// showed the model doesn't always draft a structured add_item action for
+// an item it recognizes as fake (leaving correct-reply.ts's own
+// "available nahi" correction below never triggered), and instead
+// explains the situation in its own words, which can still happen to
+// mention "menu" ("...hamara menu dekh lein") with no priced lines.
+// Narrower than the full ADD_INTENT_WORDS list from rules.ts on purpose:
+// "chahiye"/"dena"/"dedo" are also generic desire words this backstop's
+// own untaught-phrasing coverage relies on ("kuch chahiye mujhe" with no
+// category match still needs the backstop) — only the unambiguous
+// "add karo"/"add kar do"/"add kardo" verb phrase is excluded here.
+const EXPLICIT_ADD_ATTEMPT_PATTERN = /\badd\s*(karo|kar\s*do|kardo|kijiye)\b/i;
+
 export function renderMenuIntroOnlyFallbackIfApplicable(customerMessage: string, reply: string, menu: Menu): string | null {
+  if (GREETING_PATTERN.test(customerMessage.trim())) return null;
+  if (EXPLICIT_ADD_ATTEMPT_PATTERN.test(customerMessage)) return null;
+  // correct-reply.ts's own honest "item not available" correction
+  // ("...hamare menu mein available nahi hai...") legitimately contains
+  // the word "menu" with no priced lines — exactly the shape this
+  // backstop otherwise treats as a failed menu request, so it was
+  // wrongly replacing a correct, honest unavailable-item reply with the
+  // full menu dump. "available nahi" is the fixed, unique marker of that
+  // (and the sibling clarification-rejection) correction — never appears
+  // in a genuine menu-intro-only draft, so this is a safe, narrow
+  // exclusion, not a broadening of the backstop's own trigger.
+  if (/available nahi/i.test(reply)) return null;
   if (!/\bmenu\b/i.test(reply)) return null;
   if (hasAnyPricedItemLine(reply)) return null;
   if (INFO_TOPICS.some((topic) => topic.pattern.test(customerMessage))) return null;
@@ -262,6 +309,9 @@ export function renderTotalReplyIfApplicable(customerMessage: string, cart: Cart
 // renders the REAL itemized cart + total (or a friendly empty-cart
 // message), never trusting the model's own claim that it already showed
 // the order.
+// TODO: see v3/agent/rules.ts's ORDER_REVIEW_WORDS/ORDER_REVIEW_RULE — 6 of
+// its 7 canonical phrases already match this pattern; "order bataen" is a
+// known pre-existing gap intentionally left unfixed here (see rules.ts).
 const ORDER_REVIEW_PATTERN =
   /\b(order|cart)\b[\s\S]{0,20}\b(dikhao|dikha\s*do|dikha\s*den|batao|bata\s*do|show)\b|\b(dikhao|dikha\s*do|dikha\s*den|batao|bata\s*do|show)\b[\s\S]{0,20}\b(order|cart)\b|\bcurrent\s*order\b|\bmera\s*order\b|\bmy\s*order\b|\bkya\s*(order|cart)\s*hai\b|\b(order|cart)\s*kya\s*hai\b/i;
 
@@ -358,6 +408,9 @@ function titleCase(text: string): string {
   return text.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// See v3/agent/rules.ts's CLARIFICATION_RULES — this renders the queued
+// clarification the pending-add lifecycle (clarification-engine.ts) is
+// tracking, never an independent listing of its own.
 export function renderClarificationPromptIfApplicable(
   newlyQueued: { category: string; quantity: number; options: MenuItem[] }[],
   menu: Menu
@@ -368,7 +421,7 @@ export function renderClarificationPromptIfApplicable(
   const category = menu.categories.find((c) => c.key === first.category);
   const label = category ? category.title : titleCase(first.category);
 
-  const lines = first.options.map((o) => `• ${o.name} — PKR ${o.price}`).join("\n");
+  const lines = first.options.map((o) => formatMenuLine(o.name, o.price)).join("\n");
   return `Aap kaunsa ${label} chahenge?\n${lines}`;
 }
 
@@ -391,19 +444,42 @@ export function renderNoMoreItemsReplyIfApplicable(customerMessage: string, cart
   return `Theek hai. Aapka current order ye hai:\n${renderOrderItemsBlock(cart, menu)}\n\nAgar order proceed karna hai to 'checkout' likh dein.`;
 }
 
+// Production Stabilization Mode fix: a stronger signal than
+// NO_MORE_ITEMS_REPLIES above — the customer isn't just declining more
+// items (which only nudges toward typing "checkout"), they're explicitly
+// confirming THIS IS the final order ("han bas yahi hai", "bas yahi order
+// hai mera") and are ready to move on. A live bug showed this left the
+// conversation hanging: the model's own draft got corrected down to a
+// generic "cart update ho gaya" fallback with no forward progress at all.
+// Deliberately a SEPARATE, narrower pattern from NO_MORE_ITEMS_REPLIES —
+// never widens or changes that already-tested set's own (softer) behavior.
+const READY_FOR_CHECKOUT_PATTERN = /\bbas\s*yahi\s*(hai|order\s*hai)\b/i;
+
+export function isReadyForCheckoutSignal(customerMessage: string): boolean {
+  return READY_FOR_CHECKOUT_PATTERN.test(customerMessage);
+}
+
 // ─── Checkout-start verification (Phase 3C, requirement #3) ───────────────
 //
 // Checkout must ALWAYS open with the full, real order review before ever
 // asking delivery/pickup — never let the model skip straight to that
-// question on its own initiative.
+// question on its own initiative. See v3/agent/rules.ts's CHECKOUT_WORDS/
+// CHECKOUT_RULES ("checkout must show full review first") — this function
+// is that rule's actual enforcement point.
+// Production Stabilization Mode fix: the review must also warn the
+// customer that changes aren't possible after confirmation — a live bug
+// showed a customer confirming their order ("han bas yahi hai") with no
+// warning at all before being asked delivery/pickup.
 export function renderCheckoutReviewIfApplicable(checkoutApplied: CheckoutAction["type"] | null, cart: CartState, menu: Menu): string | null {
   if (checkoutApplied !== "start_checkout") return null;
-  return `Order Review:\n${renderOrderItemsBlock(cart, menu)}\n\nDelivery chahiye ya pickup?`;
+  return `Order Review:\n${renderOrderItemsBlock(cart, menu)}\n\nEk baar order review kar lein. Order confirm hone ke baad changes nahi ki ja sakengi.\n\nDelivery chahiye ya pickup?`;
 }
 
 // ─── Final-submission verification (Phase 3C, requirement #6) ─────────────
 //
-// The ONLY moment "order confirmed"-type language is ever accurate is the
+// See v3/agent/rules.ts's CHECKOUT_RULES ("never say confirmed before
+// backend verification state") — this function is that rule's enforcement
+// point. The ONLY moment "order confirmed"-type language is ever accurate is the
 // instant the backend state actually reaches PENDING_VERIFICATION — every
 // other confirm_order (the earlier ORDER_REVIEW -> AWAITING_DELIVERY_PICKUP
 // one) must never say this. Even here, the honest wording is "sent for
@@ -419,6 +495,10 @@ export function renderFinalSubmitReplyIfApplicable(checkoutApplied: CheckoutActi
 // Once PENDING_VERIFICATION, a plain "okay"/"thanks" must get ONE polite
 // acknowledgment, never a repeat of the finalization message — and every
 // repeat after that gets a short, distinct "already in verification" reply.
+// TODO: see v3/agent/rules.ts's ACKNOWLEDGEMENT_MESSAGES/ACKNOWLEDGEMENT_RULE
+// — deliberately NOT imported here: extending this narrower, one-time
+// post-order-thanks set to the full canonical list would add "acha",
+// "done", and "👍" as new triggers, a real behaviour change (see rules.ts).
 const POST_ORDER_ACK_REPLIES: ReadonlySet<string> = new Set([
   "okay", "ok", "k", "kk", "theek hai", "thanks", "thank you", "shukriya", "shukriya!",
 ]);
@@ -442,35 +522,65 @@ export function renderPostOrderAckReply(priorState: OrderState, customerMessage:
 
 // ─── Restaurant info verification ───────────────────────────────────────────
 
-const INFO_TOPICS: { pattern: RegExp; check: (reply: string, config: RestaurantConfig) => string | null }[] = [
+// TODO: see v3/agent/rules.ts's RESTAURANT_INFO_WORDS/RESTAURANT_INFO_RULE
+// — every canonical phrase there already matches one of the patterns below.
+//
+// `key` identifies each topic so matchingInfoTopics() below can resolve the
+// one known cross-topic conflict: "timing" (generic open/close hours) and
+// "deliveryTime" both react to a bare "time" mention, so a delivery-time
+// question ("delivery mein kitna time lagta hai") would otherwise ALSO
+// surface the restaurant's opening hours alongside the real answer. A
+// delivery-time-shaped message must only ever get the delivery time.
+const INFO_TOPICS: { key: string; pattern: RegExp; check: (reply: string, config: RestaurantConfig) => string | null }[] = [
   {
+    key: "address",
     pattern: /\b(address|location|kahan|kidhar)\b/i,
     check: (reply, config) => (reply.includes(config.address) ? null : `Address: ${config.address}`),
   },
   {
+    key: "phone",
     pattern: /\b(phone|number|contact|rabta)\b/i,
     check: (reply, config) => (reply.includes(config.phone) ? null : `Phone: ${config.phone}`),
   },
   {
-    pattern: /\b(timing|time|khulte|band|hours)\b/i,
+    // khule/khula/khulte — common Roman Urdu conjugations of "open"
+    // ("aap kitne baje tak khule hain") — the original pattern only
+    // recognized "khulte", missing these equally common everyday forms.
+    key: "timing",
+    pattern: /\b(timing|time|khul(e|a|te)|band|hours)\b/i,
     check: (reply, config) => (reply.includes(config.timing) ? null : `Timing: ${config.timing}`),
   },
   {
-    pattern: /\bdelivery\s*(time|kitni\s*der)\b/i,
+    // Was anchored to "delivery" immediately followed by "time"/"kitni der"
+    // (only whitespace allowed in between), so a natural phrasing with
+    // filler words in between ("delivery MEIN KITNA time lagta hai",
+    // "delivery ME KITNI DER lagegi") fell through entirely. Widened to a
+    // bounded, order-flexible gap — same "\b...[\s\S]{0,20}...\b" technique
+    // already used by ORDER_REVIEW_PATTERN elsewhere in this file.
+    key: "deliveryTime",
+    pattern: /\bdelivery\b[\s\S]{0,20}\b(time|kitni?\s*der)\b|\b(time|kitni?\s*der)\b[\s\S]{0,20}\bdelivery\b/i,
     check: (reply, config) => (reply.includes(config.deliveryTime) ? null : `Delivery time: ${config.deliveryTime}`),
   },
   {
+    key: "deliveryFee",
     pattern: /\bdelivery\s*(fee|charge)/i,
     check: (reply, config) => (reply.includes(String(config.deliveryFee)) ? null : `Delivery fee: PKR ${config.deliveryFee}`),
   },
 ];
+
+function matchingInfoTopics(customerMessage: string) {
+  const matched = INFO_TOPICS.filter((topic) => topic.pattern.test(customerMessage));
+  return matched.some((topic) => topic.key === "deliveryTime")
+    ? matched.filter((topic) => topic.key !== "timing")
+    : matched;
+}
 
 // Additive-only: if the customer clearly asked about a specific restaurant
 // fact and the reply doesn't already state the real value verbatim, append
 // the correct line — never removes or rewrites whatever the model already
 // said.
 export function verifyRestaurantInfo(customerMessage: string, reply: string, restaurantConfig: RestaurantConfig): string {
-  const missing = INFO_TOPICS.filter((topic) => topic.pattern.test(customerMessage))
+  const missing = matchingInfoTopics(customerMessage)
     .map((topic) => topic.check(reply, restaurantConfig))
     .filter((line): line is string => Boolean(line));
   return missing.length > 0 ? `${reply}\n\n${missing.join("\n")}` : reply;
@@ -496,7 +606,7 @@ export function verifyRestaurantInfo(customerMessage: string, reply: string, res
 // consulted), which is a single, testable, one-place rule instead of this
 // function re-deriving "is this message also something else" itself.
 export function renderRestaurantInfoIfApplicable(customerMessage: string, restaurantConfig: RestaurantConfig): string | null {
-  const lines = INFO_TOPICS.filter((topic) => topic.pattern.test(customerMessage))
+  const lines = matchingInfoTopics(customerMessage)
     .map((topic) => topic.check("", restaurantConfig))
     .filter((line): line is string => Boolean(line));
   return lines.length > 0 ? lines.join("\n") : null;

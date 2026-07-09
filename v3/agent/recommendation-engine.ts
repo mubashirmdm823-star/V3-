@@ -43,7 +43,17 @@ const KIDS_CATEGORY_KEYS = new Set(["starters", "rice", "noodles", "sandwiches"]
 
 const MAX_SUGGESTIONS = 3;
 
-export function recommendItems(menu: Menu, theme: RecommendationTheme, categoryHint?: string): MenuItem[] {
+// excludeCategoryKey: live bug fix — a customer who explicitly excludes a
+// category ("burgers ke ilawa spicy ma", "is ke ilawa") must never see an
+// item from that category again, even though categoryHint (below) would
+// otherwise keep re-scoping suggestions right back into it (categoryHint
+// is usually the LAST-mentioned category, which after one suggestion IS
+// the just-suggested, now-excluded item's own category — see
+// multi-intent.ts#resolveRecommendation for why). Filtered out of the pool
+// BEFORE categoryHint scoping, so a categoryHint that equals the excluded
+// category correctly falls through to the broader (still exclusion-safe)
+// pool instead of self-defeating back to an empty scoped list.
+export function recommendItems(menu: Menu, theme: RecommendationTheme, categoryHint?: string, excludeCategoryKey?: string): MenuItem[] {
   const all = allMenuItems(menu);
   let pool: MenuItem[];
 
@@ -63,6 +73,11 @@ export function recommendItems(menu: Menu, theme: RecommendationTheme, categoryH
     case "vegetarian":
       pool = all.filter((item) => item.name.toLowerCase().includes("veg"));
       break;
+  }
+
+  if (excludeCategoryKey) {
+    const excludedIds = new Set(menu.categories.find((c) => c.key === excludeCategoryKey)?.items.map((i) => i.id) ?? []);
+    pool = pool.filter((item) => !excludedIds.has(item.id));
   }
 
   if (categoryHint) {

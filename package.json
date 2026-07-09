@@ -13,9 +13,10 @@
     "qa:simulate": "tsx qa/simulator.ts",
     "qa:replay": "tsx qa/replay.ts",
     "test:v2": "tsx --test tests/v2/safety-layer.test.ts tests/v2/confidence-layer.test.ts tests/v2/intent-parser.test.ts tests/v2/cart-engine.test.ts tests/v2/order-state.test.ts tests/v2/logger.test.ts tests/v2/response-builder.test.ts tests/v2/process-message.test.ts tests/v2/context-builder.test.ts tests/v2/llm.test.ts tests/v2/llm-pipeline.test.ts tests/v2/api-chat.test.ts tests/v2/ui-switch.test.ts tests/v2/qa-fixes.test.ts tests/v2/conversation-layer.test.ts tests/v2/action-planner.test.ts tests/v2/v1-audit.test.ts",
-    "test:v3": "tsx --test tests/v3/agent.test.ts tests/v3/reply-normalizer.test.ts tests/v3/phase2-conversation-intelligence.test.ts tests/v3/phase3-behaviour-polish.test.ts tests/v3/phase3b-checkout-hardening.test.ts tests/v3/phase3c-staff-flow-rules.test.ts tests/v3/phase4-live-acceptance.test.ts tests/v3/phase5-reply-safety.test.ts tests/v3/phase6-menu-price-formatting.test.ts tests/v3/phase7-menu-intro-only-fix.test.ts tests/v3/phase8-reply-orchestrator.test.ts",
+    "test:v3": "tsx --test tests/v3/agent.test.ts tests/v3/reply-normalizer.test.ts tests/v3/phase2-conversation-intelligence.test.ts tests/v3/phase3-behaviour-polish.test.ts tests/v3/phase3b-checkout-hardening.test.ts tests/v3/phase3c-staff-flow-rules.test.ts tests/v3/phase4-live-acceptance.test.ts tests/v3/phase5-reply-safety.test.ts tests/v3/phase6-menu-price-formatting.test.ts tests/v3/phase7-menu-intro-only-fix.test.ts tests/v3/phase8-reply-orchestrator.test.ts tests/v3/phase9-clarification-queue-lifecycle.test.ts tests/v3/phase10-rules-centralization.test.ts tests/v3/phase11-recommendation-category-exclusion.test.ts tests/v3/phase12-backend-sync-checkout-lock.test.ts tests/v3/phase13-greeting-must-not-trigger-menu.test.ts tests/v3/phase14-restaurant-info-timing-delivery.test.ts tests/v3/phase15-checkout-continuation.test.ts tests/v3/phase16-unavailable-item-precedence.test.ts tests/v3/phase17-multi-variant-clarification.test.ts",
     "test:ai-gateway": "tsx --test tests/ai-gateway/ai-gateway.test.ts tests/ai-gateway/diagnostics.test.ts",
     "test:vercel": "tsx --test tests/vercel/production-runtime.test.ts",
+    "test:golden": "tsx tests/golden-conversations/run-golden.ts",
     "test:e2e": "tsx --test tests/e2e/v3-behaviors.test.ts"
   },
   "dependencies": {

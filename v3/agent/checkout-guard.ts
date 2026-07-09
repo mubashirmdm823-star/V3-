@@ -1,5 +1,9 @@
 // V3 Phase 3B — Checkout Name/Address Hardening.
 //
+// See v3/agent/rules.ts's CHECKOUT_WORDS/CHECKOUT_RULES ("delivery requires
+// address and name") — AWAITING_NAME/AWAITING_ADDRESS below are that rule's
+// enforcement point.
+//
 // AWAITING_NAME and AWAITING_ADDRESS are the two steps where a wrong model
 // decision is most damaging: confirm_order in either state must NEVER
 // execute (the Phase 3 bug this session fixes — the model occasionally
@@ -33,6 +37,31 @@ const WAIT_WORDS = new Set([
 function isWaitMessage(rawMessage: string): boolean {
   return WAIT_WORDS.has(rawMessage.trim().toLowerCase());
 }
+
+// Production Stabilization Mode, checkout mutation lock (rule #4): once the
+// customer has moved past ORDER_REVIEW into an actual checkout capture/
+// submission step, a cart add/remove/replace/quantity-change action must
+// not execute at all — the customer must explicitly cancel/edit-order
+// first. Deliberately does NOT include ORDER_REVIEW itself (V2's own
+// design intentionally still allows cart edits there, bouncing back to
+// ORDER_REVIEW for re-confirmation — see nextStateAfterCartMutation) or any
+// earlier state — only the states where delivery/address/name/submission
+// are actually in progress or already done. Consulted by actions.ts#
+// applyAgentActions before executing any cartAction.
+const CART_LOCKED_STATES: ReadonlySet<OrderState> = new Set([
+  "AWAITING_DELIVERY_PICKUP",
+  "AWAITING_ADDRESS",
+  "AWAITING_NAME",
+  "READY_TO_SUBMIT",
+  "PENDING_VERIFICATION",
+]);
+
+export function isCartMutationLocked(state: OrderState): boolean {
+  return CART_LOCKED_STATES.has(state);
+}
+
+export const CART_LOCKED_DURING_CHECKOUT_REPLY =
+  "Aap checkout stage par hain. Order mein change karni hai to pehle checkout cancel karke cart editing par wapas jaana hoga.";
 
 // A message that's actually asking to browse/change the order (not
 // answering "what's your name/address") must never be swallowed into a

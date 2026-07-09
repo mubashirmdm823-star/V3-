@@ -1,0 +1,119 @@
+[
+  {
+    "id": "recommendation-kuch-acha",
+    "title": "'mujhe kuch acha sa suggest karo' returns priced suggestions",
+    "messages": ["mujhe kuch acha sa suggest karo"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["PKR"],
+      "notes": "A general recommendation request must return real, priced items and must never itself add anything to the cart."
+    }
+  },
+  {
+    "id": "recommendation-spicy",
+    "title": "'kuch spicy suggest karo' returns priced spicy suggestions, cart untouched",
+    "messages": ["kuch spicy suggest karo"],
+    "expected": {
+      "cart": [],
+      "total": 0,
+      "mustContain": ["PKR"],
+      "notes": "Recommendation must never auto-add — locks rules.ts's RECOMMENDATION_RULE."
+    }
+  },
+  {
+    "id": "recommendation-hot-and-spicy",
+    "title": "'hot and spicy ma kuch batao mujhe' returns real spicy items, never a contentless deflection",
+    "messages": ["hot and spicy ma kuch batao mujhe"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["PKR"],
+      "mustNotContain": ["backend"],
+      "notes": "Locks the raw-text theme fallback fix — a live bug once returned 'Backend aapko menu se spicy items dikha dega' instead of real content."
+    }
+  },
+  {
+    "id": "recommendation-popular",
+    "title": "'sabse popular item kya hai' returns a real, priced signature item",
+    "messages": ["sabse popular item kya hai"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["PKR"]
+    }
+  },
+  {
+    "id": "recommendation-kids",
+    "title": "'kids ke liye kuch batao' returns real, mild, kid-appropriate items",
+    "messages": ["bachon ke liye kuch batao"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["PKR"]
+    }
+  },
+  {
+    "id": "recommendation-vegetarian",
+    "title": "'vegetarian options batao' returns real vegetarian items",
+    "messages": ["vegetarian options batao"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["PKR"]
+    }
+  },
+  {
+    "id": "recommendation-never-auto-adds",
+    "title": "A recommendation reply never adds anything to the cart even if the model drafts a cartAction",
+    "messages": ["kuch spicy suggest karo"],
+    "expected": {
+      "cart": [],
+      "total": 0,
+      "notes": "Structural guarantee: stripAutoAddsWhenRecommending in multi-intent.ts drops any cartAction attached to a recommendation turn."
+    }
+  },
+  {
+    "id": "recommendation-burger-ke-ilawa-spicy",
+    "title": "'burger ke ilawa kya spicy hai' excludes every burger from the suggestion",
+    "messages": ["kuch spicy suggest karo", "burger ke ilawa kya spicy hai"],
+    "expected": {
+      "mustNotContain": ["Spicy Stuff Burger"],
+      "mustContain": ["Hot Shot", "PKR"],
+      "notes": "Locks the category-exclusion regression fix: once a spicy burger is suggested, explicitly excluding burgers must never re-suggest one."
+    }
+  },
+  {
+    "id": "recommendation-burgers-ke-ilawa-spicy-ma",
+    "title": "'burgers ke ilawa kia hai spicy ma' (exact reported bug phrase) excludes burgers",
+    "messages": ["spicy ma", "burgers ke ilawa kia hai spicy ma"],
+    "expected": {
+      "mustNotContain": ["Spicy Stuff Burger"],
+      "mustContain": ["PKR"],
+      "notes": "Verbatim reproduction of the originally-reported bug conversation."
+    }
+  },
+  {
+    "id": "recommendation-is-ke-ilawa-bare-reference",
+    "title": "'ye to burger hai na iske ilawa kuch nahi hai spicy ma' (bare reference, no named category) still excludes burgers",
+    "messages": ["spicy ma", "ye to burger hai na iske ilawa kuch nahi hai spicy ma"],
+    "expected": {
+      "mustNotContain": ["Spicy Stuff Burger"],
+      "notes": "A bare 'iske ilawa' with no explicit category word must fall back to whatever category was last suggested."
+    }
+  },
+  {
+    "id": "recommendation-shows-prices",
+    "title": "Every recommended item is shown with its exact PKR price, never just a name",
+    "messages": ["kuch spicy suggest karo"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "A recommendation naming real items but omitting any price must be replaced with a fully-priced list."
+    }
+  },
+  {
+    "id": "recommendation-then-explicit-add",
+    "title": "A recommendation followed by an explicit 'add kar do' DOES add the item (separate turn, separate intent)",
+    "messages": ["kuch spicy suggest karo", "haan Spicy Stuff Burger add kar do"],
+    "expected": {
+      "cart": [{ "name": "Spicy Stuff Burger", "quantity": 1, "price": 700 }],
+      "total": 700,
+      "notes": "The 'never auto-add' rule only applies to the recommendation turn itself — a later, separate explicit add message is a normal cart mutation."
+    }
+  }
+]

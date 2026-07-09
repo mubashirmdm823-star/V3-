@@ -15,10 +15,11 @@
 // keeps this additive and V1/V2-invisible.
 
 import type { Menu, MenuItem } from "../../v2/types/menu";
-import { allMenuItems, findCategoryForItemId } from "../../v2/intent-parser/matching";
+import { allMenuItems, findCategoryForItemId, buildMenuVocabulary, resolveItemQuery, significantTokens } from "../../v2/intent-parser/matching";
 import { findMenuItem } from "../../v2/cart-engine/validate";
 import type { TurnFacts } from "./actions";
 import type { AgentTurnPlan } from "./schema";
+import { ACKNOWLEDGEMENT_MESSAGES } from "./rules";
 
 export interface ConversationPreferences {
   spiceLevel?: "spicy" | "mild";
@@ -56,6 +57,33 @@ export interface ConversationMemory {
 
 export function createEmptyMemory(): ConversationMemory {
   return { lastRecommendation: [], pendingRemoval: null, preferences: {}, postOrderThanked: false };
+}
+
+// ─── Bare acknowledgment detection (queue-lifecycle bug fix, rules 3/4) ────
+//
+// A pure acknowledgment ("ok"/"thanks"/"theek hai"/...) must NEVER mutate
+// the cart, even if the model — confused by a stale clarification queue
+// still showing "pending" in its own context, or simply trying to be
+// helpful — drafts a cartAction for it. This is a deterministic backstop
+// independent of the queue-lifecycle fix in clarification-engine.ts/
+// actions.ts: even once that fix stops the model from having a REASON to
+// redraft an add, this guarantees it structurally, matching the exact
+// wording the customer would need to type for this to matter — an EXACT,
+// case-insensitive match to the WHOLE trimmed message, never a substring,
+// so a longer, genuinely new instruction that merely CONTAINS one of these
+// words ("haan ye wala add kar do", "haan confirm") is never affected.
+// Base list is v3/agent/rules.ts's canonical ACKNOWLEDGEMENT_MESSAGES; the
+// extra entries here (k, kk, achha, thik hai, theek, shukriya, shukriya!,
+// haan, continue) are additional synonyms this guard already recognised —
+// kept as a strict superset so behaviour is unchanged.
+const BARE_ACKNOWLEDGMENT_WORDS: ReadonlySet<string> = new Set([
+  ...ACKNOWLEDGEMENT_MESSAGES.map((w) => w.toLowerCase()),
+  "k", "kk", "achha", "thik hai", "theek",
+  "shukriya", "shukriya!", "haan", "continue",
+]);
+
+export function isBareAcknowledgment(message: string): boolean {
+  return BARE_ACKNOWLEDGMENT_WORDS.has(message.trim().toLowerCase());
 }
 
 function findMenuItemByName(menu: Menu, name: string): MenuItem | undefined {
@@ -112,12 +140,45 @@ export function detectPreferences(message: string, existing: ConversationPrefere
 // duplicate resolution path. Falls back to the previous turn's value when
 // NOTHING changed this turn (a pure conversational message must never
 // blank out "the topic").
-function deriveLastMentionName(facts: TurnFacts | null, recommendedName: string | undefined, previous: string | undefined): string | undefined {
+// Production Stabilization Mode fix: a pure availability/Q&A turn ("alfredo
+// hota hai aapke pass") that names one specific, unambiguous real menu item
+// but mutates nothing (no add/replace/quantity-change — nothing for the
+// facts-based checks above to catch) used to leave lastMentionedItemName
+// completely unset. A later short confirmation ("g"/"haan") answering that
+// same question then had no conversational context to fall back on, so
+// actions.ts#widenUngroundedFamilyGuess treated the model's own (correct)
+// item inference as an ungrounded guess and wrongly re-asked "kaunsa Pasta
+// chahenge?" — discarding real context the customer had already
+// established. Reuses the exact same deterministic resolution primitive
+// used everywhere else (resolveItemQuery) — only ever fires when the
+// CUSTOMER's own message resolves to EXACTLY ONE real menu item on its
+// own merits, so a vague/ambiguous mention ("chowmein hota hai kya",
+// "burger accha hai") never sets a specific item.
+function findUnambiguousMenuItemInMessage(customerMessage: string, menu: Menu): string | undefined {
+  const vocabulary = buildMenuVocabulary(menu);
+  const matchedNames = new Set<string>();
+  for (const token of significantTokens(customerMessage)) {
+    const candidates = resolveItemQuery(token, menu, vocabulary);
+    if (candidates.length !== 1) continue;
+    const name = findMenuItem(menu, candidates[0])?.name;
+    if (name) matchedNames.add(name);
+  }
+  return matchedNames.size === 1 ? [...matchedNames][0] : undefined;
+}
+
+function deriveLastMentionName(
+  facts: TurnFacts | null,
+  recommendedName: string | undefined,
+  customerMessage: string,
+  menu: Menu,
+  previous: string | undefined
+): string | undefined {
   if (!facts) return recommendedName ?? previous;
   if (facts.replacedNames.length > 0) return facts.replacedNames[facts.replacedNames.length - 1].toName;
   if (facts.addedLines.length > 0) return facts.addedLines[facts.addedLines.length - 1].name;
   if (facts.changedQuantity.length > 0) return facts.changedQuantity[facts.changedQuantity.length - 1].name;
-  return recommendedName ?? previous;
+  if (recommendedName) return recommendedName;
+  return findUnambiguousMenuItemInMessage(customerMessage, menu) ?? previous;
 }
 
 function deriveLastIntent(facts: TurnFacts | null, plan: AgentTurnPlan | null): string | undefined {
@@ -159,7 +220,7 @@ export function updateMemoryAfterTurn(params: UpdateMemoryParams): ConversationM
   const { memory, customerMessage, plan, facts, menu } = params;
 
   const recommendedName = params.recommendedItemIds?.[0] ? findMenuItem(menu, params.recommendedItemIds[0])?.name : undefined;
-  const lastMentionedItemName = deriveLastMentionName(facts, recommendedName, memory.lastMentionedItemName);
+  const lastMentionedItemName = deriveLastMentionName(facts, recommendedName, customerMessage, menu, memory.lastMentionedItemName);
   const resolvedItem = lastMentionedItemName ? findMenuItemByName(menu, lastMentionedItemName) : undefined;
   const lastMentionedCategory = resolvedItem ? findCategoryForItemId(menu, resolvedItem.id)?.key ?? memory.lastMentionedCategory : memory.lastMentionedCategory;
 

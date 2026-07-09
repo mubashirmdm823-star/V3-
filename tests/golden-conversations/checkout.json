@@ -1,0 +1,154 @@
+[
+  {
+    "id": "checkout-start-shows-review",
+    "title": "'checkout' always opens with the full, real order review before asking delivery/pickup",
+    "messages": ["ek zinger burger add karo", "checkout"],
+    "expected": {
+      "state": "ORDER_REVIEW",
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["Zinger Burger", "PKR 500", "Total", "Delivery"],
+      "notes": "Checkout must never skip straight to asking delivery/pickup without showing the real review first."
+    }
+  },
+  {
+    "id": "checkout-empty-cart-rejected",
+    "title": "Checkout on an empty cart is honestly rejected, never opened",
+    "messages": ["checkout"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustContain": ["khali"],
+      "notes": "canStartCheckout must reject an empty cart — the reply must say so honestly, not pretend to start checkout."
+    }
+  },
+  {
+    "id": "checkout-confirm-moves-to-delivery-pickup",
+    "title": "Confirming the order review moves to asking delivery or pickup",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order"],
+    "expected": {
+      "state": "AWAITING_DELIVERY_PICKUP"
+    }
+  },
+  {
+    "id": "checkout-select-delivery",
+    "title": "Selecting delivery moves to address capture",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "delivery"],
+    "expected": {
+      "state": "AWAITING_ADDRESS",
+      "mustContain": ["address"]
+    }
+  },
+  {
+    "id": "checkout-select-pickup",
+    "title": "Selecting pickup skips address and moves straight to name capture",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup"],
+    "expected": {
+      "state": "AWAITING_NAME",
+      "mustContain": ["naam"]
+    }
+  },
+  {
+    "id": "checkout-address-capture-valid",
+    "title": "A real Karachi-style address is saved and moves to name capture",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "delivery", "House 12, Street 4, Gulshan-e-Iqbal, Karachi"],
+    "expected": {
+      "state": "AWAITING_NAME"
+    }
+  },
+  {
+    "id": "checkout-address-capture-invalid",
+    "title": "An implausible 'address' ('yes') is rejected, re-asked, never saved",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "delivery", "yes"],
+    "expected": {
+      "state": "AWAITING_ADDRESS",
+      "notes": "A bare 'yes' must never be accepted as a delivery address."
+    }
+  },
+  {
+    "id": "checkout-name-capture-valid",
+    "title": "A plausible name is saved and moves toward submission",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup", "Ali Khan"],
+    "expected": {
+      "state": "READY_TO_SUBMIT"
+    }
+  },
+  {
+    "id": "checkout-name-capture-invalid",
+    "title": "'help' is never accepted as the customer's name",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup", "help"],
+    "expected": {
+      "state": "AWAITING_NAME",
+      "notes": "Locks the AWAITING_NAME hardening fix — a support-shaped word must never be saved as the name."
+    }
+  },
+  {
+    "id": "checkout-final-confirm-sends-for-verification",
+    "title": "The final 'confirm' moves to PENDING_VERIFICATION and says 'sent for verification', never 'confirmed'",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup", "Ali Khan", "confirm"],
+    "expected": {
+      "state": "PENDING_VERIFICATION",
+      "mustContain": ["verification"],
+      "mustNotContain": ["order confirm ho gaya"],
+      "notes": "Since this restaurant requires manual staff verification, 'confirmed' language is never accurate until staff actually calls — the honest wording is 'sent for verification'."
+    }
+  },
+  {
+    "id": "checkout-never-says-confirmed-before-review",
+    "title": "'confirm order' attempted before an address is given is rejected without any success wording",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "delivery", "confirm order"],
+    "expected": {
+      "state": "AWAITING_ADDRESS",
+      "mustNotContain": ["order confirm ho gaya", "address save ho gaya"],
+      "notes": "confirm_order attempted while still AWAITING_ADDRESS must be structurally rejected, never falsely claim success."
+    }
+  },
+  {
+    "id": "checkout-mutation-locked-after-review",
+    "title": "Once past order review (AWAITING_DELIVERY_PICKUP), a cart add attempt is blocked entirely",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "ek chowmein bhi add karo"],
+    "expected": {
+      "state": "AWAITING_DELIVERY_PICKUP",
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["checkout stage"],
+      "mustNotContain": ["Chowmein add"],
+      "notes": "Locks the checkout-mutation-lock regression: a cart-mutating action must not execute at all once checkout has genuinely started."
+    }
+  },
+  {
+    "id": "checkout-continues-normally-after-blocked-edit",
+    "title": "Checkout continues normally after a blocked mid-checkout edit attempt",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "ek chowmein bhi add karo", "pickup"],
+    "expected": {
+      "state": "AWAITING_NAME",
+      "notes": "The blocked attempt must not corrupt the state machine — a legitimate checkout step right afterward must still work."
+    }
+  },
+  {
+    "id": "post-order-ok-acknowledgement",
+    "title": "A plain 'ok' once PENDING_VERIFICATION gets a polite one-time acknowledgement, no repeat finalization message",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup", "Ali Khan", "confirm", "ok"],
+    "expected": {
+      "state": "PENDING_VERIFICATION",
+      "mustContain": ["verification"]
+    }
+  },
+  {
+    "id": "post-order-thanks-acknowledgement",
+    "title": "'thanks' once PENDING_VERIFICATION gets a polite acknowledgement, never mutates the cart",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup", "Ali Khan", "confirm", "thanks"],
+    "expected": {
+      "state": "PENDING_VERIFICATION",
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }]
+    }
+  },
+  {
+    "id": "post-order-repeat-ack-short-reply",
+    "title": "A second acknowledgement after the order is already verified gets a short, distinct 'already in verification' reply",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "pickup", "Ali Khan", "confirm", "ok", "ok"],
+    "expected": {
+      "state": "PENDING_VERIFICATION",
+      "mustContain": ["verification"],
+      "notes": "The SECOND acknowledgement must not repeat the full finalization message verbatim."
+    }
+  }
+]

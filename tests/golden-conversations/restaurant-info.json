@@ -1,0 +1,73 @@
+[
+  {
+    "id": "restaurant-info-kahan-hai",
+    "title": "'kahan hai' (pure location question) returns the real address",
+    "messages": ["kahan hai"],
+    "expected": {
+      "mustContain": ["Nazimabad"],
+      "mustNotContain": ["PKR", "Burgers:"],
+      "notes": "A pure location question must state the real configured address, never drift into showing the menu."
+    }
+  },
+  {
+    "id": "restaurant-info-phone",
+    "title": "A phone/contact question returns the real number",
+    "messages": ["aapka number kya hai"],
+    "expected": {
+      "mustContain": ["0312"]
+    }
+  },
+  {
+    "id": "restaurant-info-timing",
+    "title": "A timing question returns the real opening hours",
+    "messages": ["aap kitne baje tak khule hain"],
+    "expected": {
+      "mustContain": ["PM", "AM"]
+    }
+  },
+  {
+    "id": "restaurant-info-delivery-time",
+    "title": "A delivery-time question returns the real estimate",
+    "messages": ["delivery mein kitna time lagta hai"],
+    "expected": {
+      "mustContain": ["minute"]
+    }
+  },
+  {
+    "id": "restaurant-info-delivery-fee",
+    "title": "A delivery-fee question returns the real fee",
+    "messages": ["delivery charges kitne hain"],
+    "expected": {
+      "mustContain": ["PKR 150"]
+    }
+  },
+  {
+    "id": "restaurant-info-kahan-hai-current-order",
+    "title": "'kahan hai current order' shows the ORDER, not just the address",
+    "messages": ["ek zinger burger add karo", "kahan hai current order"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["Zinger Burger", "PKR 500"],
+      "mustNotContain": ["Nazimabad"],
+      "notes": "Locks the order-priority-beats-location regression: order/cart intent must win over a coincidental 'kahan' mention."
+    }
+  },
+  {
+    "id": "restaurant-info-with-order-intent-together",
+    "title": "A message combining a real order-review ask with a location word still shows the order first",
+    "messages": ["ek pasta small add karo", "mera order kahan dikhega"],
+    "expected": {
+      "mustContain": ["Pasta Small"],
+      "notes": "Order/cart intent has priority over restaurant-info intent whenever both could plausibly apply in the same message."
+    }
+  },
+  {
+    "id": "restaurant-info-address-after-order",
+    "title": "Asking for the restaurant's address AFTER placing an order still answers honestly with the real address",
+    "messages": ["ek zinger burger add karo", "aapki dukan kahan hai"],
+    "expected": {
+      "mustContain": ["Nazimabad"],
+      "notes": "A genuinely pure location question (no order/cart wording) must still get the real address even mid-conversation."
+    }
+  }
+]

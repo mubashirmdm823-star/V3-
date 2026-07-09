@@ -1,0 +1,108 @@
+[
+  {
+    "id": "regression-hi-must-not-show-menu",
+    "title": "REGRESSION: fresh 'hi' must not trigger the full menu",
+    "messages": ["hi"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR", "Burgers:", "Pizza:"],
+      "notes": "Historical bug: a greeting draft that politely offered to show the menu ('Hi! ... Hamara menu dekhna chahenge?') was wrongly expanded into the full priced menu by the menu-intro-only backstop, since a bare greeting wasn't excluded from that backstop's trigger condition. Fixed by excluding an exact-match greeting from the backstop."
+    }
+  },
+  {
+    "id": "regression-chowmein-must-not-auto-select-chicken",
+    "title": "REGRESSION: 'chowmein' must never be silently narrowed to Chicken Chowmein",
+    "messages": ["ek chowmein add karo"],
+    "expected": {
+      "cart": [],
+      "state": "AWAITING_CLARIFICATION",
+      "mustContain": ["Chicken Chowmein", "Vegetable Chowmein"],
+      "notes": "Historical bug: the model sometimes wrote a fully-specific query ('chicken chowmein') itself instead of passing the ambiguous word through, which resolved to exactly one candidate and bypassed the whole 0/1/2+ ambiguity design. Fixed by a backend guard requiring the word that distinguishes a single-candidate resolution from its family siblings to actually be present in the customer's own raw message."
+    }
+  },
+  {
+    "id": "regression-ok-must-not-replay-cart-actions",
+    "title": "REGRESSION: 'ok' must never replay or duplicate a prior cart mutation",
+    "messages": ["ek chowmein add karo", "chicken", "ok"],
+    "expected": {
+      "cart": [{ "name": "Chicken Chowmein", "quantity": 1, "price": 650 }],
+      "total": 650,
+      "notes": "Historical bug: a stale, never-cleared clarification queue kept the model's own prompt context showing 'still pending', so even a bare 'ok' could make the model redraft the exact same add action, duplicating the quantity. Fixed by (1) fully draining a resolved multi-entry queue in one turn, and (2) a deterministic bare-acknowledgment guard that strips any cartAction attached to an exact-match acknowledgement message, independent of what the model drafts."
+    }
+  },
+  {
+    "id": "regression-menu-intro-only-must-not-happen",
+    "title": "REGRESSION: a menu reply must never be an intro line with zero actual items",
+    "messages": ["menu please"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "Historical bug: 'Menu please' once got 'Sure, here's our full menu for you!' with no items at all. Fixed by a backstop that replaces any draft mentioning 'menu' with zero priced lines with the real, fully-priced menu — now also correctly excluded for bare greetings (see regression-hi-must-not-show-menu)."
+    }
+  },
+  {
+    "id": "regression-order-dikhao-must-show-cart-and-total",
+    "title": "REGRESSION: 'order dikhao' must always show the real itemized cart and total",
+    "messages": ["ek zinger burger add karo", "order dikhao"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["Zinger Burger", "PKR 500", "Total"],
+      "notes": "Historical bug: 'order dikhao' got 'Aapka current order yeh hai:' with the items and total never actually following it, because nothing deterministically verified a bare order/cart-review request at all. Fixed by a dedicated order-review render function that always renders the real cart + total from backend state."
+    }
+  },
+  {
+    "id": "regression-kahan-hai-current-order-must-show-order-not-address",
+    "title": "REGRESSION: 'kahan hai current order' must show the order, not the restaurant address",
+    "messages": ["ek zinger burger add karo", "kahan hai current order"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["Zinger Burger"],
+      "mustNotContain": ["Nazimabad"],
+      "notes": "Historical bug: restaurant-info's own self-check for 'does this message also look like something else' didn't know about order/cart requests, so the bare word 'kahan' was enough to replace the whole reply with just the address, silently discarding 'current order'. Fixed by the reply-orchestrator's single, fixed priority order, where order-review always outranks restaurant info."
+    }
+  },
+  {
+    "id": "regression-checkout-state-must-block-new-cart-mutations",
+    "title": "REGRESSION: once checkout has started, a new add attempt must not execute",
+    "messages": ["ek zinger burger add karo", "checkout", "confirm order", "ek chowmein bhi add karo"],
+    "expected": {
+      "state": "AWAITING_DELIVERY_PICKUP",
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["checkout stage"],
+      "notes": "Historical bug: nothing checked the order state before executing a cart-mutating action, so an add attempted mid-checkout could still reach the cart engine. Fixed by a deterministic checkout-mutation lock covering AWAITING_DELIVERY_PICKUP/AWAITING_ADDRESS/AWAITING_NAME/READY_TO_SUBMIT/PENDING_VERIFICATION."
+    }
+  },
+  {
+    "id": "regression-recommendation-must-not-auto-add",
+    "title": "REGRESSION: a recommendation turn must never itself add anything to the cart",
+    "messages": ["kuch spicy suggest karo"],
+    "expected": {
+      "cart": [],
+      "total": 0,
+      "notes": "Historical bug: the model occasionally attached an add action to its own recommendation turn on its own initiative, adding the first suggested item without being asked. Fixed by dropping any add/add-multiple action attached to a turn the model itself classified as a recommendation request."
+    }
+  },
+  {
+    "id": "regression-burger-ke-ilawa-must-exclude-burgers",
+    "title": "REGRESSION: excluding burgers from a recommendation must actually exclude them",
+    "messages": ["spicy ma", "burgers ke ilawa kia hai spicy ma"],
+    "expected": {
+      "mustNotContain": ["Spicy Stuff Burger"],
+      "mustContain": ["Hot Shot"],
+      "notes": "Historical bug: after suggesting a spicy burger, 'lastMentionedCategory' became 'burgers' (set from the prior suggestion itself), and nothing detected the customer's explicit exclusion, so the very next spicy request re-scoped straight back into Burgers and repeated the same item. Fixed by detecting an exclusion marker ('ke ilawa'/'siwa'/'nahi') and filtering the excluded category out of every candidate pool."
+    }
+  },
+  {
+    "id": "regression-clarification-queue-must-not-duplicate-on-multi-item-answer",
+    "title": "REGRESSION: a multi-item answer to a multi-question clarification queue must fully drain it, never leave a duplicate",
+    "messages": ["mujhe ek pasta aur ek chowmein chahiye", "pasta small chowmein chicken"],
+    "expected": {
+      "cart": [
+        { "name": "Pasta Small", "quantity": 1, "price": 500 },
+        { "name": "Chicken Chowmein", "quantity": 1, "price": 650 }
+      ],
+      "total": 1150,
+      "notes": "Historical bug: a multi-mention reply to a multi-entry queue bypassed queue resolution entirely (only single-mention answers were ever attempted against the queue) and fell through to a brand-new, independent add — the right items landed, but the original queue entries were never consumed, so a later 'ok' could redraft and duplicate them. Fixed by resolving every mention against whichever queue entry's own option list it matches, draining every entry that got at least one match in the same turn."
+    }
+  }
+]

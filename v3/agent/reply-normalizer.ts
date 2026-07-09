@@ -12,6 +12,8 @@
 // Pure string transforms only — never touches the cart, never touches
 // menu prices, never changes what happened this turn, only how it reads.
 
+import { BANNED_CUSTOMER_REPLY_TERMS } from "./rules";
+
 // Internal vocabulary that should never reach the customer as a bare word
 // — the old tool-call names from the pre-refactor architecture, kept here
 // (not re-derived from schema.ts) since schema.ts's action "type" values
@@ -226,7 +228,11 @@ export function stripInternalLeakage(text: string): string {
 // blocklist exists for whatever leaks through anyway, so no customer-facing
 // reply can ever contain these words, no matter which code path produced
 // it.
-const INTERNAL_TERM_WORDS = ["backend", "front[- ]?end", "tool", "json", "provider", "gateway", "internal", "system", "debug", "v2", "v3", "engine"];
+// Base list is v3/agent/rules.ts's canonical BANNED_CUSTOMER_REPLY_TERMS;
+// "front[- ]?end" is an extra, pre-existing entry not in that list, kept
+// here as a strict superset so behaviour is unchanged (the pattern is
+// case-insensitive, so "V2"/"V3" match regardless of the casing used here).
+const INTERNAL_TERM_WORDS = [...BANNED_CUSTOMER_REPLY_TERMS.map((w) => w.toLowerCase()), "front[- ]?end"];
 const INTERNAL_TERM_PATTERN = new RegExp(`\\b(${INTERNAL_TERM_WORDS.join("|")})\\b`, "gi");
 
 export function containsInternalTerms(text: string): boolean {

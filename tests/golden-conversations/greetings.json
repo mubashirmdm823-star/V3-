@@ -1,0 +1,106 @@
+[
+  {
+    "id": "greeting-hi-fresh",
+    "title": "Fresh 'hi' returns a greeting only, never the menu",
+    "messages": ["hi"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR", "Burgers:", "Pizza:", "Pasta:"],
+      "notes": "Locks the greeting-must-never-trigger-menu regression: a bare greeting must never be expanded into the full priced menu, even if the model's own draft politely offers to show it."
+    }
+  },
+  {
+    "id": "greeting-hello-fresh",
+    "title": "Fresh 'hello' returns a greeting only, never the menu",
+    "messages": ["hello"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR", "Burgers:", "Pizza:", "Pasta:"],
+      "notes": "Same rule as greeting-hi-fresh, different exact greeting word."
+    }
+  },
+  {
+    "id": "greeting-hey-fresh",
+    "title": "Fresh 'hey' returns a greeting only, never the menu",
+    "messages": ["hey"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR"],
+      "notes": "Same rule as greeting-hi-fresh, different exact greeting word."
+    }
+  },
+  {
+    "id": "greeting-salam",
+    "title": "Fresh 'salam' returns a greeting only, never the menu",
+    "messages": ["salam"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR"],
+      "notes": "Roman Urdu greeting variant — same rule as greeting-hi-fresh."
+    }
+  },
+  {
+    "id": "greeting-assalam-o-alaikum",
+    "title": "Fresh 'assalam o alaikum' returns a greeting only, never the menu",
+    "messages": ["assalam o alaikum"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR"],
+      "notes": "Full formal greeting variant — same rule as greeting-hi-fresh."
+    }
+  },
+  {
+    "id": "greeting-english-hello-there",
+    "title": "'hello there' (English, not an exact single-word greeting) is still handled politely",
+    "messages": ["hello there, is this Think Food?"],
+    "expected": {
+      "mustContain": ["Think Food"],
+      "mustNotContain": ["Burgers:", "Pizza:"],
+      "notes": "A longer greeting-shaped message should still be answered as a greeting/identity confirmation, not dumped into the menu."
+    }
+  },
+  {
+    "id": "greeting-then-explicit-menu-request",
+    "title": "'hi' then a separate explicit 'menu' request shows the menu on the SECOND turn only",
+    "messages": ["hi", "menu"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "Proves the greeting exclusion doesn't also block a genuinely explicit menu request made afterward in the same conversation."
+    }
+  },
+  {
+    "id": "greeting-combined-with-menu-request",
+    "title": "'hi, menu dikhao' (greeting + explicit ask in ONE message) still gets the menu",
+    "messages": ["hi, menu dikhao"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "The greeting exclusion is an exact whole-message match, never a substring — a message that merely opens with a greeting word but also contains a real request must not be blocked from its real content."
+    }
+  },
+  {
+    "id": "greeting-never-mutates-cart",
+    "title": "A greeting never mutates the cart",
+    "messages": ["hi"],
+    "expected": {
+      "cart": [],
+      "total": 0,
+      "notes": "A greeting carries no item mention at all, so nothing should ever land in the cart from it."
+    }
+  },
+  {
+    "id": "greeting-repeated",
+    "title": "Two greetings in a row both stay greetings, never escalate to the menu",
+    "messages": ["hi", "hello"],
+    "expected": {
+      "cart": [],
+      "state": "BROWSING",
+      "mustNotContain": ["PKR"],
+      "notes": "Repeating a greeting must not eventually 'fall through' to a menu dump on a later turn."
+    }
+  }
+]

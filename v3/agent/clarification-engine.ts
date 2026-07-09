@@ -1,5 +1,9 @@
 // V3 Phase 2 — Clarification Engine.
 //
+// See v3/agent/rules.ts's CLARIFICATION_RULES — this file is that rule
+// set's actual enforcement point (pending answers resolve only the pending
+// queue, queued actions are single-use, the queue clears after resolution).
+//
 // Owns every "is this message answering a pending question?" decision for
 // V3, for BOTH directions:
 //   - ADD clarifications (V2's own AWAITING_CLARIFICATION queue, e.g. "which
@@ -97,6 +101,80 @@ export function resolvePendingAdd(
       resolvedAmbiguities: chosen ? [{ chosenName: chosen.name, rejectedNames }] : [],
     },
   };
+}
+
+// ─── Multi-mention queue resolution (queue-lifecycle bug fix) ──────────────
+//
+// A pending clarification queue can hold MULTIPLE questions at once (e.g.
+// "5 pasta ek chowmein" queues a pasta ambiguity AND a chowmein ambiguity
+// in the same turn). The customer's answer to a multi-question queue is
+// often ALSO multi-item in one message ("do small ek mexican ek macaroni
+// ek vegetable" — 3 mentions answer the pasta question, 1 answers the
+// chowmein question). resolvePendingAdd above only ever handles EXACTLY
+// one mention, so a multi-mention reply used to skip queue resolution
+// entirely and fall through to a brand-new, independent add (runFreshAdd)
+// — landing the right items in the cart by coincidence, but leaving the
+// ORIGINAL queue entries completely untouched even though the customer had
+// just answered them. That stale, never-cleared queue is the root cause of
+// a real production bug: a LATER turn (even a bare "ok") could still see a
+// non-empty clarificationQueue and re-draft the exact same add, duplicating
+// every item.
+//
+// Resolves EVERY mention against whichever queue entry's OWN option list
+// it matches (never the whole menu — same "lock" rule as the single-mention
+// path) and removes EVERY queue entry that got at least one mention
+// resolved against it. A mention matching no queue entry at all is
+// dropped — never silently added as an unrelated item, and never queued as
+// a brand-new ambiguity: a clarification answer must ONLY resolve the
+// pending queue, never create an independent add plan. Returns null (let
+// the caller fall through to a genuinely fresh add) only when NOT ONE
+// mention matched anything currently in the queue.
+export function resolvePendingAddMulti(
+  context: OrderContext,
+  queue: PendingClarificationContext[],
+  mentions: ItemMention[],
+  menu: Menu
+): { context: OrderContext; facts: Partial<TurnFacts> } | null {
+  const consumed = new Set<number>();
+  const toAdd: { itemId: string; quantity: number }[] = [];
+  const resolvedAmbiguities: { chosenName: string; rejectedNames: string[] }[] = [];
+
+  for (const mention of mentions) {
+    const normalizedQuery = normalizeQueryText(mention.query);
+    for (let i = 0; i < queue.length; i++) {
+      const scoped = resolveItemQueryAmongItems(normalizedQuery, queue[i].options);
+      if (scoped.length !== 1) continue;
+      const chosenId = scoped[0];
+      const chosen = findMenuItem(menu, chosenId);
+      const quantity = mention.quantity ?? queue[i].quantity;
+      toAdd.push({ itemId: chosenId, quantity });
+      consumed.add(i);
+      if (chosen) {
+        const rejectedNames = queue[i].options.map((o) => o.name).filter((n) => n !== chosen.name);
+        resolvedAmbiguities.push({ chosenName: chosen.name, rejectedNames });
+      }
+      break;
+    }
+  }
+
+  if (toAdd.length === 0) return null;
+
+  let cart = context.cart;
+  for (const { itemId, quantity } of toAdd) {
+    const result = addItem(cart, itemId, menu, quantity);
+    if (result.ok) cart = result.cart;
+  }
+
+  const remaining = queue.filter((_, i) => !consumed.has(i));
+  const nextState = remaining.length > 0 ? "AWAITING_CLARIFICATION" : "CART_EDITING";
+  const patched = touch(context, {
+    state: nextState,
+    cart,
+    ...withClarificationQueue(remaining),
+    orderReviewShown: context.orderReviewShown,
+  });
+
+  return { context: patched, facts: { resolvedAmbiguities } };
 }
 
 // ─── REMOVE side (V3-only, requirement #8) ──────────────────────────────────

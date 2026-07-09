@@ -13,6 +13,7 @@
 // this module only routes, it never re-classifies intent itself.
 
 import type { Menu, MenuItem } from "../../v2/types/menu";
+import { findCategoryByName, significantTokens } from "../../v2/intent-parser/matching";
 import type { ConversationMemory } from "./conversation-memory";
 import { recommendItems } from "./recommendation-engine";
 import type { AgentTurnPlan, CartAction, CheckoutAction, RecommendationTheme } from "./schema";
@@ -22,16 +23,41 @@ export interface RecommendationOutcome {
   items: MenuItem[];
 }
 
+// Live bug fix: "burgers ke ilawa spicy ma" / "burger nahi" / bare "is ke
+// ilawa" (referring to whatever was just suggested) must exclude that
+// category from the NEXT suggestion — previously nothing detected this at
+// all, so categoryHint (memory.lastMentionedCategory, set from the PRIOR
+// turn's own suggestion — see conversation-memory.ts#updateMemoryAfterTurn)
+// kept re-scoping straight back into the very category the customer just
+// asked to exclude, repeating the same excluded item every turn. Reuses
+// the intent parser's own findCategoryByName (never a new word list) —
+// scans the message's significant tokens for one that names a real menu
+// category exactly the same way item/category resolution already works
+// everywhere else in this codebase.
+const EXCLUSION_MARKER_PATTERN = /\bke\s*(ilawa|siwa|alawa)\b|\bilawa\b|\bsiwa\b|\bnahi\b/i;
+
+function detectExcludedCategoryKey(customerMessage: string, menu: Menu, memory: ConversationMemory): string | undefined {
+  if (!EXCLUSION_MARKER_PATTERN.test(customerMessage)) return undefined;
+  const namedCategory = significantTokens(customerMessage)
+    .map((token) => findCategoryByName(token, menu))
+    .find((category): category is NonNullable<typeof category> => Boolean(category));
+  // No category named in this message ("is ke ilawa" alone) — falls back
+  // to whatever category was last actually mentioned/suggested.
+  return namedCategory?.key ?? memory.lastMentionedCategory;
+}
+
 // Resolves the model's classified theme into REAL menu items, scoped to
 // whatever category was last discussed when that helps ("spicy" while
 // talking about Burgers prefers a spicy burger over a spicy item from an
 // unrelated category) — falls back to the unscoped list when nothing
-// matches within scope.
-export function resolveRecommendation(plan: AgentTurnPlan, menu: Menu, memory: ConversationMemory): RecommendationOutcome | null {
+// matches within scope. An excluded category (see above) is filtered out
+// of every candidate pool this turn, scoped AND unscoped alike.
+export function resolveRecommendation(plan: AgentTurnPlan, menu: Menu, memory: ConversationMemory, customerMessage: string): RecommendationOutcome | null {
   if (!plan.recommendationRequest) return null;
   const { theme } = plan.recommendationRequest;
-  const items = recommendItems(menu, theme, memory.lastMentionedCategory);
-  return { theme, items: items.length > 0 ? items : recommendItems(menu, theme) };
+  const excludeCategoryKey = detectExcludedCategoryKey(customerMessage, menu, memory);
+  const items = recommendItems(menu, theme, memory.lastMentionedCategory, excludeCategoryKey);
+  return { theme, items: items.length > 0 ? items : recommendItems(menu, theme, undefined, excludeCategoryKey) };
 }
 
 export interface MultiIntentResult {
@@ -57,8 +83,8 @@ function stripAutoAddsWhenRecommending(cartActions: CartAction[], recommending: 
 // The one call site index.ts uses to fan a plan out — cart mutation and
 // recommendation resolution happen independently, in the same turn,
 // neither blocking nor overwriting the other.
-export function splitPlanIntents(plan: AgentTurnPlan, menu: Menu, memory: ConversationMemory): MultiIntentResult {
-  const recommendation = resolveRecommendation(plan, menu, memory);
+export function splitPlanIntents(plan: AgentTurnPlan, menu: Menu, memory: ConversationMemory, customerMessage: string): MultiIntentResult {
+  const recommendation = resolveRecommendation(plan, menu, memory, customerMessage);
   return {
     cartActions: stripAutoAddsWhenRecommending(plan.cartActions, recommendation !== null),
     checkoutAction: plan.checkoutAction,

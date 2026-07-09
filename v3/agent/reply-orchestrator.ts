@@ -19,6 +19,13 @@
 // and every render function stays pure/independent (add a new tier here,
 // never scatter a new cross-check into an unrelated function).
 //
+// See v3/agent/rules.ts's PRIORITY_RULES for the canonical, human-readable
+// 10-tier summary of the list below (this file's actual tiers array is more
+// granular — 18 entries, since checkout and recommendation each split into
+// sub-tiers for reasons documented inline below — collapsing it back down
+// to exactly 10 would risk behaviour, so it stays as-is and cross-links
+// rules.ts instead of importing it).
+//
 // Priority order (highest first) — do not reorder without re-reading the
 // header of every tier below; this list IS the product requirement:
 //   1. Post-order / PENDING_VERIFICATION acknowledgment

@@ -1,0 +1,149 @@
+[
+  {
+    "id": "clarification-pasta-bare",
+    "title": "'mujhe ek pasta chahiye' asks which pasta, listing all 5 with prices",
+    "messages": ["mujhe ek pasta chahiye"],
+    "expected": {
+      "cart": [],
+      "state": "AWAITING_CLARIFICATION",
+      "mustContain": ["Pasta Small", "Pasta Large", "Alfredo Pasta white sauce", "Macaroni Pasta red sauce", "Mexican Pasta white sauce", "PKR"],
+      "notes": "Bare 'pasta' is genuinely ambiguous across all 5 pasta items — must ask, never guess, and must list every option with its real price."
+    }
+  },
+  {
+    "id": "clarification-pasta-then-small",
+    "title": "Answering the pasta clarification with 'small' adds Pasta Small",
+    "messages": ["mujhe ek pasta chahiye", "small"],
+    "expected": {
+      "cart": [{ "name": "Pasta Small", "quantity": 1, "price": 500 }],
+      "total": 500,
+      "state": "CART_EDITING"
+    }
+  },
+  {
+    "id": "clarification-pasta-then-alfredo",
+    "title": "Answering the pasta clarification with 'alfredo' adds Alfredo Pasta white sauce",
+    "messages": ["mujhe ek pasta chahiye", "alfredo"],
+    "expected": {
+      "cart": [{ "name": "Alfredo Pasta white sauce", "quantity": 1, "price": 850 }],
+      "total": 850
+    }
+  },
+  {
+    "id": "clarification-chowmein-bare",
+    "title": "'ek chowmein add karo' asks Chicken or Vegetable, never auto-adds",
+    "messages": ["ek chowmein add karo"],
+    "expected": {
+      "cart": [],
+      "state": "AWAITING_CLARIFICATION",
+      "mustContain": ["Chicken Chowmein", "Vegetable Chowmein", "PKR"],
+      "notes": "Locks the ambiguous-item-lock regression: the model must never guess a specific chowmein variant on its own."
+    }
+  },
+  {
+    "id": "clarification-chowmein-then-chicken",
+    "title": "Answering the chowmein clarification with 'chicken' adds Chicken Chowmein",
+    "messages": ["ek chowmein add karo", "chicken"],
+    "expected": {
+      "cart": [{ "name": "Chicken Chowmein", "quantity": 1, "price": 650 }],
+      "total": 650
+    }
+  },
+  {
+    "id": "clarification-chowmein-then-vegetable",
+    "title": "Answering the chowmein clarification with 'vegetable' adds Vegetable Chowmein",
+    "messages": ["ek chowmein add karo", "vegetable"],
+    "expected": {
+      "cart": [{ "name": "Vegetable Chowmein", "quantity": 1, "price": 600 }],
+      "total": 600
+    }
+  },
+  {
+    "id": "clarification-zinger-family-bare",
+    "title": "'ek zinger kardo' asks which zinger, narrower than the whole Burgers category",
+    "messages": ["ek zinger kardo"],
+    "expected": {
+      "cart": [],
+      "state": "AWAITING_CLARIFICATION",
+      "mustContain": ["Zinger Burger", "Zinger Burger W/C", "Jumbo Zinger", "PKR"],
+      "mustNotContain": ["Smoke Burger", "Spicy Stuff Burger"],
+      "notes": "Family ambiguity: bare 'zinger' spans only the 3 zinger-named items, never the whole 6-item Burgers category."
+    }
+  },
+  {
+    "id": "clarification-zinger-then-jumbo",
+    "title": "Answering the zinger clarification with 'jumbo' adds Jumbo Zinger",
+    "messages": ["ek zinger kardo", "jumbo"],
+    "expected": {
+      "cart": [{ "name": "Jumbo Zinger", "quantity": 1, "price": 750 }],
+      "total": 750
+    }
+  },
+  {
+    "id": "clarification-zinger-then-w-c",
+    "title": "Answering the zinger clarification with 'w/c wala' adds Zinger Burger W/C",
+    "messages": ["ek zinger kardo", "w/c wala"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger W/C", "quantity": 1, "price": 550 }]
+    }
+  },
+  {
+    "id": "clarification-burger-whole-category-bare",
+    "title": "A bare 'burger' request (no family match) asks across the whole Burgers category",
+    "messages": ["burger chahiye"],
+    "expected": {
+      "state": "AWAITING_CLARIFICATION",
+      "mustContain": ["PKR"],
+      "notes": "A generic 'burger' word with no narrower family match is genuinely ambiguous across the whole category."
+    }
+  },
+  {
+    "id": "clarification-burger-then-select-smoke",
+    "title": "Answering a burger clarification by naming 'smoke burger' resolves unambiguously",
+    "messages": ["burger chahiye", "smoke burger"],
+    "expected": {
+      "cart": [{ "name": "Smoke Burger", "quantity": 1, "price": 550 }]
+    }
+  },
+  {
+    "id": "clarification-answer-locked-to-pending-options",
+    "title": "A clarification answer resolves ONLY against the pending options, never a whole-menu search",
+    "messages": ["ek zinger kardo", "mexican"],
+    "expected": {
+      "notes": "'mexican' doesn't match any of the 3 pending zinger options — must not silently resolve to an unrelated menu-wide item (e.g. Mexican Pizza/Sandwich/Pasta); either stays pending or is treated as a genuinely new, separate request, never a wrong silent match."
+    }
+  },
+  {
+    "id": "clarification-still-ambiguous-answer",
+    "title": "A reply that's STILL ambiguous within the pending options re-asks rather than guessing",
+    "messages": ["ek zinger kardo", "zinger burger"],
+    "expected": {
+      "notes": "'zinger burger' alone still matches both 'Zinger Burger' and 'Zinger Burger W/C' — must re-ask for the exact full name, never guess the base variant."
+    }
+  },
+  {
+    "id": "clarification-multi-item-queue",
+    "title": "A compound order queues BOTH a pasta and a chowmein clarification, resolved together",
+    "messages": ["mujhe ek pasta aur ek chowmein chahiye", "pasta small chowmein chicken"],
+    "expected": {
+      "cart": [
+        { "name": "Pasta Small", "quantity": 1, "price": 500 },
+        { "name": "Chicken Chowmein", "quantity": 1, "price": 650 }
+      ],
+      "total": 1150,
+      "notes": "Locks the queue-lifecycle fix: a multi-item answer must fully drain a multi-entry clarification queue in one turn, never leave a stale entry behind."
+    }
+  },
+  {
+    "id": "clarification-queue-clears-after-resolution",
+    "title": "Once a clarification is answered, the queue is empty and normal browsing resumes",
+    "messages": ["ek chowmein add karo", "chicken", "order dikhao"],
+    "expected": {
+      "state": "CART_EDITING",
+      "cart": [{ "name": "Chicken Chowmein", "quantity": 1, "price": 650 }],
+      "total": 650,
+      "mustContain": ["Chicken Chowmein", "PKR 650", "Total"],
+      "notes": "State must leave AWAITING_CLARIFICATION once resolved, and the resulting order review must be fully itemized with the real total."
+    }
+  }
+]

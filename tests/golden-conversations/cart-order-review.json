@@ -1,0 +1,185 @@
+[
+  {
+    "id": "add-single-item",
+    "title": "'ek zinger burger add karo' adds exactly one Zinger Burger",
+    "messages": ["ek zinger burger add karo"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "total": 500,
+      "mustContain": ["Zinger Burger"]
+    }
+  },
+  {
+    "id": "add-item-with-explicit-quantity",
+    "title": "'3 zinger burger add karo' adds quantity 3, not 1",
+    "messages": ["3 zinger burger add karo"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 3, "price": 500 }],
+      "total": 1500
+    }
+  },
+  {
+    "id": "add-multiple-distinct-items",
+    "title": "A single compound message adds every distinct, unambiguous item it names",
+    "messages": ["ek zinger burger aur ek pizza small 6 inch add karo"],
+    "expected": {
+      "cart": [
+        { "name": "Zinger Burger", "quantity": 1, "price": 500 },
+        { "name": "Pizza Small 6 inch", "quantity": 1, "price": 550 }
+      ],
+      "total": 1050
+    }
+  },
+  {
+    "id": "add-unavailable-item",
+    "title": "Asking for an item that isn't on the menu is honestly declined, never invented",
+    "messages": ["ek dragon roll add karo"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["available nahi"],
+      "notes": "An item genuinely not on the menu must never be silently added or hallucinated as available."
+    }
+  },
+  {
+    "id": "remove-item-from-cart",
+    "title": "Adding then removing the same item leaves the cart empty",
+    "messages": ["ek zinger burger add karo", "zinger burger hata do"],
+    "expected": {
+      "cart": [],
+      "total": 0
+    }
+  },
+  {
+    "id": "remove-item-not-in-cart",
+    "title": "Removing an item that was never added is a safe no-op, never a false 'removed' claim",
+    "messages": ["ek pizza small 6 inch add karo", "zinger burger hata do"],
+    "expected": {
+      "cart": [{ "name": "Pizza Small 6 inch", "quantity": 1, "price": 550 }],
+      "mustNotContain": ["Zinger Burger hata diya", "Zinger Burger removed"],
+      "notes": "Nothing named 'zinger burger' is in the cart — must not falsely claim a removal."
+    }
+  },
+  {
+    "id": "remove-ambiguous-within-cart",
+    "title": "Removing a word that matches 2+ items ALREADY in the cart asks which one, scoped to the cart",
+    "messages": ["ek zinger burger add karo", "ek jumbo zinger add karo", "zinger hata do"],
+    "expected": {
+      "mustContain": ["Zinger Burger", "Jumbo Zinger"],
+      "notes": "Both zinger items are genuinely in the cart — must ask which to remove rather than guessing or removing both."
+    }
+  },
+  {
+    "id": "replace-item",
+    "title": "'zinger burger ki jagah jumbo zinger kar do' replaces in place",
+    "messages": ["ek zinger burger add karo", "zinger burger ki jagah jumbo zinger kar do"],
+    "expected": {
+      "cart": [{ "name": "Jumbo Zinger", "quantity": 1, "price": 750 }],
+      "total": 750
+    }
+  },
+  {
+    "id": "replace-item-not-in-cart",
+    "title": "Replacing an item that isn't in the cart fails safely, never a false 'replaced' claim",
+    "messages": ["ek pasta small add karo", "zinger burger ki jagah jumbo zinger kar do"],
+    "expected": {
+      "cart": [{ "name": "Pasta Small", "quantity": 1, "price": 500 }],
+      "notes": "There's no Zinger Burger in the cart to replace — the cart must stay exactly as it was."
+    }
+  },
+  {
+    "id": "change-quantity",
+    "title": "'zinger burger 3 kar do' updates the existing line's quantity",
+    "messages": ["ek zinger burger add karo", "zinger burger 3 kar do"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 3, "price": 500 }],
+      "total": 1500
+    }
+  },
+  {
+    "id": "change-quantity-item-not-in-cart",
+    "title": "Changing the quantity of an item not in the cart is a safe no-op",
+    "messages": ["ek pasta small add karo", "zinger burger 3 kar do"],
+    "expected": {
+      "cart": [{ "name": "Pasta Small", "quantity": 1, "price": 500 }]
+    }
+  },
+  {
+    "id": "order-dikhao-shows-cart-and-total",
+    "title": "'order dikhao' shows the real itemized cart with quantities, line prices, and total",
+    "messages": ["ek zinger burger add karo", "order dikhao"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "mustContain": ["Zinger Burger", "PKR 500", "Total"],
+      "notes": "Locks the order-review-must-show-real-content regression — a reply claiming to show the order must actually list it."
+    }
+  },
+  {
+    "id": "order-review-empty-cart",
+    "title": "'order dikhao' on an empty cart gives a friendly empty-cart reply, never a blank one",
+    "messages": ["order dikhao"],
+    "expected": {
+      "cart": [],
+      "mustContain": ["khali"],
+      "notes": "An empty cart must get an honest, friendly message, never a broken or blank 'order review'."
+    }
+  },
+  {
+    "id": "mera-order-shows-real-cart",
+    "title": "'mera order' phrasing also shows the real cart, not just 'order dikhao'",
+    "messages": ["do pasta small add karo", "mera order"],
+    "expected": {
+      "cart": [{ "name": "Pasta Small", "quantity": 2, "price": 500 }],
+      "mustContain": ["Pasta Small", "Total"]
+    }
+  },
+  {
+    "id": "total-kitna-hua",
+    "title": "'kitna total hua' states the real backend total, never a vague deferral",
+    "messages": ["ek pizza small 6 inch add karo", "ek pasta small add karo", "kitna total hua"],
+    "expected": {
+      "cart": [
+        { "name": "Pizza Small 6 inch", "quantity": 1, "price": 550 },
+        { "name": "Pasta Small", "quantity": 1, "price": 500 }
+      ],
+      "total": 1050,
+      "mustContain": ["PKR 1050"]
+    }
+  },
+  {
+    "id": "bill-kitna-hai",
+    "title": "'bill kitna hai' also states the real total",
+    "messages": ["ek zinger burger add karo", "bill kitna hai"],
+    "expected": {
+      "total": 500,
+      "mustContain": ["PKR 500"]
+    }
+  },
+  {
+    "id": "acknowledgement-ok-never-mutates",
+    "title": "'ok' after an add never mutates the cart, even if the model drafts a cartAction",
+    "messages": ["ek zinger burger add karo", "ok"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "total": 500,
+      "notes": "Locks rules.ts's ACKNOWLEDGEMENT_RULE — 'ok' must never add a second Zinger Burger or otherwise change the cart."
+    }
+  },
+  {
+    "id": "acknowledgement-thanks-never-mutates",
+    "title": "'thanks' after an add never mutates the cart",
+    "messages": ["ek zinger burger add karo", "thanks"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }]
+    }
+  },
+  {
+    "id": "acknowledgement-after-clarification-never-replays",
+    "title": "'ok' after resolving a clarification never replays the resolved add a second time",
+    "messages": ["ek chowmein add karo", "chicken", "ok"],
+    "expected": {
+      "cart": [{ "name": "Chicken Chowmein", "quantity": 1, "price": 650 }],
+      "total": 650,
+      "notes": "Locks the clarification-queue-lifecycle regression — a stale queue/memory reference must never let a bare 'ok' duplicate the quantity."
+    }
+  }
+]

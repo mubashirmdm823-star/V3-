@@ -1,0 +1,108 @@
+[
+  {
+    "id": "menu-bare",
+    "title": "Bare 'menu' returns the full menu with prices",
+    "messages": ["menu"],
+    "expected": {
+      "mustContain": ["PKR", "Burgers", "Pizza", "Pasta"],
+      "notes": "Every category must be present with real prices — this is the canonical explicit menu trigger."
+    }
+  },
+  {
+    "id": "menu-please",
+    "title": "'menu please' returns the full menu with prices",
+    "messages": ["menu please"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "Locks the original menu-intro-only regression fix: this exact phrasing used to get an intro line with zero items."
+    }
+  },
+  {
+    "id": "menu-full-menu",
+    "title": "'full menu' returns the full menu with prices",
+    "messages": ["full menu"],
+    "expected": {
+      "mustContain": ["PKR"]
+    }
+  },
+  {
+    "id": "menu-show-menu",
+    "title": "'show menu' returns the full menu with prices",
+    "messages": ["show menu"],
+    "expected": {
+      "mustContain": ["PKR"]
+    }
+  },
+  {
+    "id": "menu-view-menu",
+    "title": "'view menu' returns the full menu with prices",
+    "messages": ["view menu"],
+    "expected": {
+      "mustContain": ["PKR"]
+    }
+  },
+  {
+    "id": "menu-kya-kya-hai",
+    "title": "'kya kya hai' returns the full menu with prices",
+    "messages": ["kya kya hai"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "Roman Urdu reduplication idiom for 'what all do you have' — must be recognized as a full-menu request."
+    }
+  },
+  {
+    "id": "menu-kia-kia-available-hai",
+    "title": "'kia kia available hai' returns the full menu with prices",
+    "messages": ["kia kia available hai"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "Alternate spelling of kya kya hai, plus 'available' — must still resolve to the full menu."
+    }
+  },
+  {
+    "id": "menu-category-pizza",
+    "title": "'pizza menu dikhao' shows ONLY the Pizza category",
+    "messages": ["pizza menu dikhao"],
+    "expected": {
+      "mustContain": ["Pizza", "PKR"],
+      "mustNotContain": ["Chicken Chowmein", "Zinger Burger"],
+      "notes": "A specific category word always wins over the bare 'menu' mention in the same message — only that category's real items should appear."
+    }
+  },
+  {
+    "id": "menu-category-burgers",
+    "title": "'burgers dikhao' shows ONLY the Burgers category",
+    "messages": ["burgers dikhao"],
+    "expected": {
+      "mustContain": ["Zinger Burger", "PKR"],
+      "mustNotContain": ["Pasta Small", "Chicken Chowmein"]
+    }
+  },
+  {
+    "id": "menu-category-pasta",
+    "title": "'pasta menu batao' shows ONLY the Pasta category",
+    "messages": ["pasta menu batao"],
+    "expected": {
+      "mustContain": ["Pasta", "PKR"],
+      "mustNotContain": ["Zinger Burger"]
+    }
+  },
+  {
+    "id": "menu-full-then-category",
+    "title": "Full menu, then a follow-up category request narrows correctly",
+    "messages": ["menu", "ab sirf burgers dikhao"],
+    "expected": {
+      "mustContain": ["Zinger Burger", "PKR"],
+      "notes": "A follow-up category-scoped request after the full menu must still correctly narrow to just that category."
+    }
+  },
+  {
+    "id": "menu-untaught-phrasing-still-works",
+    "title": "An untaught menu phrasing still gets the real, priced menu (backstop preserved)",
+    "messages": ["hey what do you guys offer around here"],
+    "expected": {
+      "mustContain": ["PKR"],
+      "notes": "The menu-intro-only backstop exists specifically to catch phrasings the trigger-word list hasn't been taught yet — this must keep working even after the greeting-exclusion fix."
+    }
+  }
+]

@@ -1,0 +1,87 @@
+[
+  {
+    "id": "edge-irrelevant-off-topic",
+    "title": "A completely off-topic message never mutates the cart or fakes an order action",
+    "messages": ["cricket match kaisa raha aaj"],
+    "expected": {
+      "cart": [],
+      "total": 0,
+      "notes": "An off-topic message must get a polite, on-brand deflection back to ordering — never a cart change, never an invented item."
+    }
+  },
+  {
+    "id": "edge-complaint",
+    "title": "A complaint message is acknowledged politely, never argued with, never mutates the cart",
+    "messages": ["ek zinger burger add karo", "aapka service bohat slow hai"],
+    "expected": {
+      "cart": [{ "name": "Zinger Burger", "quantity": 1, "price": 500 }],
+      "notes": "A complaint must never be misread as a cart-mutation instruction."
+    }
+  },
+  {
+    "id": "edge-confused-customer",
+    "title": "A confused/unclear customer message is handled gracefully, never crashes or fabricates an order",
+    "messages": ["mujhe samajh nahi aa raha kya karoon"],
+    "expected": {
+      "cart": [],
+      "notes": "Genuine confusion must get a helpful clarifying nudge, never a silent cart mutation or a crash."
+    }
+  },
+  {
+    "id": "edge-emoji-only",
+    "title": "An emoji-only message never mutates the cart and never crashes",
+    "messages": ["🍔🍕😋"],
+    "expected": {
+      "cart": [],
+      "notes": "Pure emoji with no clear text intent must never be interpreted as a specific add/remove action."
+    }
+  },
+  {
+    "id": "edge-long-run-on-message",
+    "title": "A long, run-on natural-language order is still parsed correctly for its real, unambiguous items",
+    "messages": ["hi bhai kaise ho umeed hai acha hoga mujhe aik zinger burger chahiye aur haan ek pasta small bhi de dena shukriya"],
+    "expected": {
+      "cart": [
+        { "name": "Zinger Burger", "quantity": 1, "price": 500 },
+        { "name": "Pasta Small", "quantity": 1, "price": 500 }
+      ],
+      "total": 1000,
+      "notes": "Conversational filler around a real order must not prevent the real items from landing correctly."
+    }
+  },
+  {
+    "id": "edge-mixed-language",
+    "title": "A mixed English/Roman-Urdu/Hinglish message resolves correctly",
+    "messages": ["can you please add one zinger burger aur ek chowmein chicken wala"],
+    "expected": {
+      "cart": [
+        { "name": "Zinger Burger", "quantity": 1, "price": 500 },
+        { "name": "Chicken Chowmein", "quantity": 1, "price": 650 }
+      ],
+      "total": 1150
+    }
+  },
+  {
+    "id": "edge-gibberish",
+    "title": "Gibberish/nonsense input never crashes and never mutates the cart",
+    "messages": ["asdkjaslkdj qwoeiqwoe zxcvzxcv"],
+    "expected": {
+      "cart": [],
+      "total": 0,
+      "notes": "Meaningless input must be handled safely — no crash, no invented item, no cart change."
+    }
+  },
+  {
+    "id": "edge-multiple-actions-one-message",
+    "title": "A single message with multiple distinct actions (add + remove) applies both correctly",
+    "messages": ["ek zinger burger aur ek pasta small add karo", "zinger burger hata do aur ek jumbo zinger add kar do"],
+    "expected": {
+      "cart": [
+        { "name": "Pasta Small", "quantity": 1, "price": 500 },
+        { "name": "Jumbo Zinger", "quantity": 1, "price": 750 }
+      ],
+      "total": 1250,
+      "notes": "A compound remove+add message must apply both actions against the real cart, never just one of them."
+    }
+  }
+]

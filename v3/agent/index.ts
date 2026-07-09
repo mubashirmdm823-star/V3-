@@ -43,6 +43,7 @@ import {
   renderCurrentOrderIfApplicable,
   isNoMoreItemsReply,
   renderNoMoreItemsReplyIfApplicable,
+  isReadyForCheckoutSignal,
   renderClarificationPromptIfApplicable,
   renderCheckoutReviewIfApplicable,
   renderFinalSubmitReplyIfApplicable,
@@ -171,7 +172,7 @@ export async function processAgentMessage(
     // Phase 2: fan the one plan out into its independent streams — cart
     // mutation and recommendation resolution never block or overwrite each
     // other (requirement #3, "pasta hata do aur kuch spicy suggest karo").
-    const split = splitPlanIntents(outcome.plan, menu, session.memory);
+    const split = splitPlanIntents(outcome.plan, menu, session.memory, message);
     let { cartActions, checkoutAction } = split;
     const { recommendation } = split;
 
@@ -187,6 +188,19 @@ export async function processAgentMessage(
     if (noMoreItemsThisTurn) {
       cartActions = [];
       checkoutAction = null;
+    }
+
+    // Production Stabilization Mode fix: "han bas yahi hai" / "bas yahi
+    // order hai mera" explicitly confirm the order is final and ready for
+    // checkout — a stronger, distinct signal from the softer
+    // NO_MORE_ITEMS_REPLIES nudge above, so it deterministically starts the
+    // real checkout review (never left for the model to guess, and never
+    // widening the existing no-more-items behavior). Same capture/
+    // clarification exclusion as noMoreItemsThisTurn.
+    const readyForCheckoutThisTurn = !isCaptureOrClarificationState && isReadyForCheckoutSignal(message);
+    if (readyForCheckoutThisTurn) {
+      cartActions = [];
+      checkoutAction = { type: "start_checkout" };
     }
 
     // Phase 3C, requirement #4: the customer often answers "delivery ya
@@ -216,7 +230,8 @@ export async function processAgentMessage(
       effectiveCheckoutAction,
       menu,
       restaurantConfig,
-      session.memory
+      session.memory,
+      message
     );
 
     // Combine the two existing, unchanged V2 transitions
@@ -227,7 +242,7 @@ export async function processAgentMessage(
     let deliverySelectionOverride: string | null = null;
     if (facts.checkoutApplied === "confirm_order" && nextOrderContext.state === "AWAITING_DELIVERY_PICKUP" && (wantsDelivery || wantsPickup)) {
       const autoAction: CheckoutAction = wantsDelivery ? { type: "select_delivery" } : { type: "select_pickup" };
-      const advanced = applyAgentActions(nextOrderContext, [], autoAction, menu, restaurantConfig, session.memory);
+      const advanced = applyAgentActions(nextOrderContext, [], autoAction, menu, restaurantConfig, session.memory, message);
       nextOrderContext = advanced.context;
       facts = {
         ...facts,
